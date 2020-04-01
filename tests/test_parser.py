@@ -11,6 +11,16 @@ from compiler.parser.ast import (
     String,
     ByteString,
     PrefixedString,
+    Operator,
+    UnaryExpr,
+    BinaryExpr,
+    IfExpr,
+    FuncParam,
+    FuncParams,
+    FuncExpr,
+    TupleRestExpr,
+    NamedTupleRestExpr,
+    ComprehensionFor,
 )
 
 
@@ -27,35 +37,22 @@ def test_parser_memoizes_parser_functions_results_successfully():
     parser1.p(parser1.prefixed_string, parser1.imag_float, parser1.integer)()
 
     assert parser1.cache == {
-        -1: {
-            "prefixed_string": (PrefixedString(0), 0),
-        },
-        0: {
-            "imag_float": (ImagFloat(1), 1),
-        },
-        1: {
-            "integer": (None, 2)
-        }
+        -1: {"prefixed_string": (PrefixedString(0), 0),},
+        0: {"imag_float": (ImagFloat(1), 1),},
+        1: {"integer": (None, 2)},
     }
 
     parser1.p(parser1.prefixed_string, parser1.imag_float, parser1.identifier)()
 
     assert parser1.cache == {
-        -1: {
-            "prefixed_string": (PrefixedString(0), 0),
-        },
-        0: {
-            "imag_float": (ImagFloat(1), 1),
-        },
-        1: {
-            "integer": (None, 2),
-            "identifier": (Identifier(2), 2)
-        }
+        -1: {"prefixed_string": (PrefixedString(0), 0),},
+        0: {"imag_float": (ImagFloat(1), 1),},
+        1: {"integer": (None, 2), "identifier": (Identifier(2), 2)},
     }
 
     # Check to see if parser reuses cache instead of making repeated calls
     parser2 = Parser.from_code("u'hello' .05im _wr2t4gdbeYFS")
-    imag_float = MagicMock(return_value=ImagFloat(1), __name__='imag_float')
+    imag_float = MagicMock(return_value=ImagFloat(1), __name__="imag_float")
 
     # These functions are needed because the decorators have wrapper functions that take
     # a self argument.
@@ -501,43 +498,58 @@ def test_opt_combinator_function_parses_matched_zero_or_one_sequence_successfull
     assert parser2.combinator_data == {}
 
 
-"""
-Work in progress tests below
-"""
+def test_parse_power_expr_parses_power_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5^6").power_expr()
+    result1 = Parser.from_code("5²").power_expr()
+    result2 = Parser.from_code("5").power_expr()
+    result3 = Parser.from_code("√5²").power_expr()
+    result4 = Parser.from_code("√5^5").power_expr()
 
-# print('',
-#       result0,
-#       result1,
-#       result2,
-#       parser2.combinator_data,
-#       sep="\n\n>>>> ")
+    assert result0 == BinaryExpr(Integer(0), Operator(1), Integer(2))
+    assert result1 == UnaryExpr(Integer(0), Operator(1))
+    assert result2 == Integer(0)
+    assert result3 == UnaryExpr(UnaryExpr(Integer(1), Operator(2)), Operator(0))
+    assert result4 == UnaryExpr(
+        BinaryExpr(Integer(1), Operator(2), Integer(3)), Operator(0)
+    )
 
-# def test_parse_power_expr_parses_power_expression_successfully():
-#     # TODO: More complex examples
-#     result0 = Parser.from_code("5^6").parse_power_expr()
-#     result1 = Parser.from_code("5²").parse_power_expr()
-#     result2 = Parser.from_code("5").parse_power_expr()
-#     result3 = Parser.from_code("√5²").parse_power_expr()
-#     # result4 = Parser.from_code("√5^5").parse_power_expr()
 
-#     print('', result0, result1, result2, result3, sep='\n\n>>> ')
+def test_parse_unary_expr_root_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("-6").unary_expr()
+    result1 = Parser.from_code("-5²").unary_expr()
+    result2 = Parser.from_code("~√5²").unary_expr()
+    result3 = Parser.from_code("-√5^5").unary_expr()
+    result4 = Parser.from_code("-~+5_00").unary_expr()
 
-# def test_parse_unary_expr_root_expression_successfully():
-#     # TODO: More complex examples
-#     result0 = Parser.from_code("-6").parse_unary_expr()
-#     result1 = Parser.from_code("-5²").parse_unary_expr()
-#     result2 = Parser.from_code("√~5²").parse_unary_expr()
-#     result3 = Parser.from_code("-√5^5").parse_unary_expr()
-#     result4 = Parser.from_code("-~+5_00").parse_unary_expr()
+    assert result0 == UnaryExpr(Integer(1), Operator(0))
+    assert result1 == UnaryExpr(UnaryExpr(Integer(1), Operator(2)), Operator(0))
+    assert result2 == UnaryExpr(
+        UnaryExpr(UnaryExpr(Integer(2), Operator(3)), Operator(1)), Operator(0)
+    )
+    assert result3 == UnaryExpr(
+        UnaryExpr(BinaryExpr(Integer(2), Operator(3), Integer(4)), Operator(1)),
+        Operator(0),
+    )
+    assert result4 == UnaryExpr(
+        UnaryExpr(UnaryExpr(Integer(3), Operator(2)), Operator(1)), Operator(0)
+    )
 
-#     print('', result0, result1, result2, result3, result4, sep='\n\n>>> ')
 
-# def test_parse_mul_expr_multiply_expression_successfully():
-#     # TODO: More complex examples
-#     result0 = Parser.from_code("-5.0f").parse_mul_expr()
-#     result1 = Parser.from_code("0xff*3//4").parse_mul_expr()
-#     result2 = Parser.from_code("√~5f²").parse_mul_expr()
-#     result3 = Parser.from_code("5^5*3").parse_mul_expr()
-#     result4 = Parser.from_code("-5/-4*+3").parse_mul_expr()
+def test_parse_mul_expr_multiply_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("-5.0f").parse_mul_expr()
+    result1 = Parser.from_code("0xff*3//4").parse_mul_expr()
+    result2 = Parser.from_code("√~5f²").parse_mul_expr()
+    result3 = Parser.from_code("5^5*3").parse_mul_expr()
+    result4 = Parser.from_code("-5/-4*+3").parse_mul_expr()
 
-#     print('', result0, result1, result2, result3, result4, sep='\n\n>>> ')
+    # assert result0 == BinaryExpr(Integer(0), Operator(1), Integer(2))
+    # assert result1 == UnaryExpr(Integer(0), Operator(1))
+    # assert result2 == Integer(0)
+    # assert result3 == UnaryExpr(UnaryExpr(Integer(1), Operator(2)), Operator(0))
+    # assert result4 == UnaryExpr(
+    #     BinaryExpr(Integer(1), Operator(2), Integer(3)), Operator(0)
+    # )
+
