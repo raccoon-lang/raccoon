@@ -37,7 +37,7 @@ main() {
 # Prints help message
 help() {
 	echo ""
-	echo "============== VIPER BUILD UTILS ==================="
+	echo "============== CORONA BUILD UTILS ==================="
 	echo ""
 	echo " [USAGE] : sh build.sh [comand]"
 	echo ""

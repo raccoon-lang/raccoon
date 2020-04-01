@@ -5,7 +5,7 @@
 </div>
 
 
-<h1 align="center">VIPER</h1>
+<h1 align="center">CORONA</h1>
 
 ### INTRODUCTION
 Corona is a language with Python 3.x syntax that is amenable to static analysis. The repository both defines the spec of the language and contains a reference implementation of the compiler, which compiles a legal Corona code to WebAssembly.
