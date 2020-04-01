@@ -1,0 +1,383 @@
+newline =
+    | newline
+
+indent =
+    | indent
+
+dedent =
+    | dedent
+
+identifier =
+    | identifier
+
+integer =
+    | dec_integer
+    | bin_integer
+    | oct_integer
+    | hex_integer
+
+float =
+    | dec_float
+
+imag_integer =
+    | imag_integer
+
+imag_float =
+    | imag_float
+
+string =
+    | string
+
+byte_string =
+    | byte_string
+
+prefixed_string =
+    | prefixed_string
+
+power_expr =
+    | '√'? atom_expr ('^' unary_expr | '²')?
+
+unary_expr =
+    | ('+' | '-' | '~')* power_expr
+
+mul_expr =
+    | unary_expr (('*' | '@' | '/' | '%' | '//') unary_expr)*
+
+sum_expr =
+    | mul_expr (('+' | '-') mul_expr)*
+
+shift_expr =
+    | sum_expr (('<<' | '>>') sum_expr)*
+
+and_expr =
+    | shift_expr ('&' shift_expr)*
+
+xor_expr =
+    | and_expr ('||' and_expr)*
+
+or_expr =
+    | xor_expr ('|' xor_expr)*
+
+comparison_op =
+    | '<'
+    | '>'
+    | '=='
+    | '>='
+    | '<='
+    | '!='
+    | 'in'
+    | 'not' 'in'
+    | 'is'
+    | 'is' 'not'
+
+comparison_expr =
+    | or_expr (comparison_op or_expr)*
+
+not_test =
+    | 'not'* comparison_expr
+
+and_test =
+    | not_test ('and' not_test)*
+
+or_test =
+    | and_test ('or' and_test)*
+
+test =
+    | or_test ('if' expr 'else' expr)?
+
+lambda_param =
+    | identifier ('=' expr)?
+
+lambda_params =
+    | '(' func_params? ')'
+    | lambda_param (',' lambda_param)* (',' '*' lambda_param (',' lambda_param)*)? (',' '**' lambda_param)? ','?
+    | '*' lambda_param (',' lambda_param)* (',' '**' lambda_param)? ','?
+    | '**' lambda_param ','?
+
+lambda_expr_def =
+    | 'lambda' lambda_params? ':' expr
+
+expr =
+    | test
+    | lambda_expr_def
+
+exprs =
+    | expr (',' expr)* ','?
+
+rest_expr =
+    | ('*' | '**')? expr
+
+rest_exprs =
+    | rest_expr (',' rest_expr)* ','?
+
+lambda_block_def =
+    | 'lambda' lambda_params? ':' indent statement+ dedent
+
+indentable_expr =
+    | expr
+    | lambda_block_def
+
+indentable_exprs =
+    | indentable_expr (',' indentable_expr)* ','?
+
+rest_indentable_expr =
+    | ('*' | '**')? indentable_expr
+
+rest_indentable_exprs =
+    | rest_indentable_expr (',' rest_indentable_expr)* ','?
+
+sync_comprehension_for =
+    | 'for' lhs 'in' indentable_expr
+
+comprehension_where =
+    | 'where' indentable_exprs
+
+comprehension_for =
+    | 'async'? sync_comprehension_for
+
+comprehension_iter =
+    | comprehension_for
+    | comprehension_where
+
+indentable_exprs_or_comprehension =
+    | rest_indentable_expr comprehension_for comprehension_iter*
+    | rest_indentable_expr (',' rest_indentable_expr)* ','?
+
+yield_argument =
+    | 'from' indentable_expr
+    | indentable_exprs
+
+yield_expr =
+    | 'yield' yield_argument?
+
+expr_suite =
+    | rest_indentable_expr
+    | indent rest_indentable_expr dedent
+
+dict_or_set =
+    | (test ':' expr_suite | rest_indentable_expr) comprehension_for comprehension_iter*
+    | test ':' expr_suite (',' test ':' expr_suite)* ','?
+
+subscript =
+    | test? ':' test? (':' test?)?
+    | test
+
+subscripts =
+    | subscript (',' subscript)* ','?
+
+atom =
+    | '(' (yield_expr | indentable_exprs_or_comprehension)? ')'
+    | '[' indentable_exprs_or_comprehension? ']'
+    | '{' dict_or_set? '}'
+    | identifier
+    | float
+    | string+
+    | 'None'
+    | 'True'
+    | 'False'
+
+identifiers =
+    | identifier (',' identifier)* ','?
+
+arguments =
+    | rest_indentable_expr
+    | identifier '=' indentable_expr
+
+atom_trailer =
+    | '(' arguments? ')'
+    | '[' subscripts ']'
+    | '.' identifier
+
+atom_expr =
+    | 'await'? atom atom_trailer*
+
+with_statement =
+    | 'with' expr ('as' identifier) (',' with_item)*  ':' func_suite
+
+try_statement =
+    | 'try' ':' func_suite except_clause+ else_clause finally_clause? | finally_clause
+
+else_clause =
+    | 'else' ':' func_suite
+
+except_clause =
+    | 'except' identifier ('as' identifier) ':' func_suite
+
+finally_clause =
+    | 'finally' ':' func_suite
+
+where_clause =
+    | 'where' expr
+
+for_statement =
+    | 'for' lhs 'in' exprs where_clause? ':' func_suite else_clause?
+
+while_statement =
+    | 'while' expr where_clause? ':' func_suite else_clause?
+
+elif_clause =
+    | 'elif' test ':' func_suite
+
+if_statement =
+    | 'if' expr ':' func_suite elif_clause* else_clause?
+
+type =
+    | '[' type ']'
+    | '(' type (',' type)* ','? ')' ('->' type)?
+    | identifier ('{' type (',' type)* ','? '}')?
+    | type '?'
+    | type ('|' | '&') type
+
+class_suite =
+    | assignment_statement
+    | indent (import_statement | assignment_statement | class_def | 'async'? func_def | string)+ dedent
+
+class_def = TODO
+    | 'class' identifier ('{' type (',' type)* ','? '}')? ('(' identifiers? ')')? ':' class_suite
+
+lhs_argument_trailer =
+    | '(' arguments? ')' lhs_argument_trailer
+    | '[' subscripts ']'
+    | '.' identifier
+
+lhs_argument =
+    | ('*' | '**')? identifier lhs_argument_trailer*
+
+lhs =
+    | '(' lhs_argument (',' lhs_argument)* ','? ')'
+    | '[' lhs_argument (',' lhs_argument)* ','? ']'
+    | lhs_argument (',' lhs_argument)* ','?
+
+func_param =
+    | identifier (':' type)? ('=' indentable_expr)?
+
+func_params =
+    | func_param (',' func_param)* (',' '*' func_param (',' func_param)*)? (',' '**' func_param)? ','?
+    | '*' func_param (',' func_param)* (',' '**' func_param)? ','?
+    | '**' func_param ','?
+
+func_suite =
+    | simple_statement
+    | indent statement+ dedent
+
+func_def =
+    | 'def' identifier ('{' type (',' type)* ','? '}')? func_params '->' type ':' func_suite
+
+async_statement =
+    | 'async' (func_def | with_statement | for_statement)
+
+global_statement =
+    | 'global' identifier (',' identifier)*
+
+nonlocal_statement =
+    | 'nonlocal' identifier (',' identifier)*
+
+assert_statement =
+    | 'assert' expr (',' expr)?
+
+del_statement =
+    | 'del' identifier (',' identifier)*
+
+pass_statement =
+    | 'pass'
+
+break_statement =
+    | 'break'
+
+continue_statement =
+    | 'continue'
+
+return_statement =
+    | 'return' exprs
+
+yield_statement =
+    | yield_expr
+
+raise_statement =
+    | 'raise' (expr ('from' expr))?
+
+flow_statement =
+    | break_statement
+    | continue_statement
+    | return_statement
+    | raise_statement
+    | yield_statement
+
+assignment_op =
+    | '+='
+    | '-='
+    | '*='
+    | '@='
+    | '/='
+    | '%='
+    | '&='
+    | '|='
+    | '^='
+    | '<<='
+    | '>>='
+    | '**='
+    | '//='
+    | '='
+
+assignment_annotation =
+    | ':' type ('=' rest_indentable_expr)?
+
+assignment_statement =
+    | lhs assignment_annotation
+    | lhs assignment_op (yield_expr | rest_indentable_exprs)
+    | lhs ('=' lhs)+  '=' (yield_expr | rest_indentable_exprs)
+
+dotted_name =
+    | identifier ('.' identifier)*
+
+dotted_as_name =
+    | dotted_name ('as' identifier)?
+
+import_name =
+    | 'import' dotted_as_names
+
+import_as_name =
+    | identifier ('as' identifier)?
+
+import_as_names =
+    | import_as_name (',' import_as_name)* ','?
+
+import_from =
+    | 'from' ('.'* dotted_name | '.'+) 'import' ('*' | '(' import_as_names ')' | import_as_names))
+
+import_statement =
+    | import_name
+    | import_from
+
+decorator_statement =
+    | '@' dotted_name arguments?
+
+compound_statement:
+    | if_statement
+    | while_statement
+    | for_statement
+    | try_statement
+    | with_statement
+    | decorator_statement
+    | func_def
+    | class_def
+    | async_statement
+
+small_statement =
+    | assignment_statement
+    | pass_statement
+    | flow_statement
+    | import_statement
+    | global_statement
+    | nonlocal_statement
+    | assert_statement
+
+simple_statement =
+    | small_statement (';' small_statement)* ';'? newline
+
+statement =
+    | simple_statement
+    | compound_statement
+
+program =
+    | (newline | statement)+
