@@ -128,7 +128,16 @@ class AST:
         return f"{type(self).__name__}{str(vars(self))}"
 
     def __eq__(self, other):
-        return vars(self) == vars(other)
+        return vars(self) == vars(other) if isinstance(other, AST) else None
+
+
+class Null(AST):
+    """
+    This class is useful for creating AST shim that can to be ignored.
+    `parser.opt`, a method that matches zeor or one occurence of a sequence,
+    returns a Null if there is zero occurence of a sequence to show it is still valid.
+    """
+    pass
 
 
 class Newline(AST):
@@ -187,9 +196,8 @@ class PrefixedString(AST):
 
 
 class Operator(AST):
-    def __init__(self, op, second_token=None):
+    def __init__(self, op):
         self.op = op
-        self.second_token = second_token
 
 
 class UnaryExpr(AST):
