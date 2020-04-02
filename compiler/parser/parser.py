@@ -509,15 +509,11 @@ class Parser:
 
         result = self.power_expr()
 
-        print('>>> unary_ops', unary_ops)
-
         if result is None:
             return None
 
         for unary_op in reversed(unary_ops):
             result = UnaryExpr(result, unary_op)
-
-        print("\n\n>>>> ", result)
 
         return result
 
@@ -554,6 +550,7 @@ class Parser:
 
             result = BinaryExpr(result, Operator(operator, second_token), rhs)
 
+        print("\n\n>>>> ", result)
         return result
 
     @backtrackable

@@ -1,29 +1,28 @@
 # POLYMORPHISM
+#### TYPES
+- CLASS INDEPENDENT
 
-## FIELDS
-#### CLASS INDEPENDENT
+    Similar field names and field types, but fields may be different positions.
 
-Similar field names and field types, but fields may be different positions.
+        Dog {name: str, age: int}
+            allows - Person {name: str, age: int}
 
-    Dog {name: str, age: int}
-        allows - Person {name: str, age: int}
+- TYPE INDEPENDENT
 
-#### TYPE INDEPENDENT
+    Similar types, but fields may have different types.
 
-Similar types, but fields may have different types.
+        Type {name: int, age: int}
+            allows - Type {name: str, age: str}
 
-    Type {name: int, age: int}
-        allows - Type {name: str, age: str}
+-  POSITION INDEPENDENT
 
-#### POSITION INDEPENDENT
+    Similar fields, but field may be in different positions and fields may have different types.
 
-Similar fields, but field may be in different positions and fields may have different types.
-
-    Super {name: int, age: int}
-        allows - Sub {age: int, name: int}
+        Super {name: int, age: int}
+            allows - Sub {age: int, name: int}
 
 
-### AFFECTED ELEMENTS
+#### AFFECTED ELEMENTS
 - function applications
     - function(Any) - 3
     - function(Dog { name: str}) - 1
@@ -37,7 +36,7 @@ Similar fields, but field may be in different positions and fields may have diff
     - list{Super} - 3
 
 
-### POSSIBLE SOLUTIONS
+#### POSSIBLE SOLUTIONS
 - Type witness table
 - Type inference algorithm
 - Type interface and specialisations list
@@ -47,46 +46,48 @@ Similar fields, but field may be in different positions and fields may have diff
         - print({id: str}, {age: int})
 
 
----------------
-
-
-
 
 # DECLARATION
-#### ABSOLUTE CYCLIC DEPENDENCY
 
-When it is statically known that two elements directly or indirectly depend on each other.
+#### TYPES
+- ABSOLUTE CYCLIC DEPENDENCY
 
-### AFFECTED ELEMENTS
-- function calls
-- type instantiation
-- module import
-- inheritance
+    When it is statically known that two elements directly or indirectly depend on each other.
 
-
-#### USE BEFORE DECLARATION
-
-When a reference is used before it is declared.
-
-### AFFECTED ELEMENTS
-- variables
-- types
-- functions
+    #### AFFECTED ELEMENTS
+    - function calls
+    - type instantiation
+    - module import
+    - inheritance
 
 
-#### CONFLICT RESOLUTION
+- USE BEFORE DECLARATION
 
-Conflict emerges whne there a two occurence of a particular element
+    When a reference is used before it is declared.
 
-### AFFECTED ELEMENTS
-- inherited methods
-- function overloads
-- method overrides
+    #### AFFECTED ELEMENTS
+    - variables
+    - types
+    - functions
 
-### POSSIBLE SOLUTIONS
+
+- CONFLICT RESOLUTION
+
+    Conflict emerges when there are two occurence of a particular element
+
+    #### AFFECTED ELEMENTS
+    - inherited methods
+    - function overloads
+    - method overrides
+
+
+#### POSSIBLE SOLUTIONS
 - Dispatch table
 - MRO algorithm
 - Scope tree
 - Call graph
 - Import graph
 - Inheritance tree
+
+
+####
