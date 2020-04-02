@@ -23,8 +23,8 @@ Similar fields, but field may be in different positions and fields may have diff
         allows - Sub {age: int, name: int}
 
 
-### TYPES AFFECTED
-- functions
+### AFFECTED ELEMENTS
+- function applications
     - function(Any) - 3
     - function(Dog { name: str}) - 1
     - function(Type) - 2
@@ -39,14 +39,13 @@ Similar fields, but field may be in different positions and fields may have diff
 
 ### POSSIBLE SOLUTIONS
 - Type witness table
+- Type inference algorithm
+- Type interface and specialisations list
+- Function interface and monomporphisations list
+    - print({id}, {age})
+        - print({id: int}, {age: int})
+        - print({id: str}, {age: int})
 
---------------
-
-## FUNCTIONS
-
-### POSSIBLE SOLUTIONS
-- Dispatch table
-- MRO table
 
 ---------------
 
@@ -54,3 +53,40 @@ Similar fields, but field may be in different positions and fields may have diff
 
 
 # DECLARATION
+#### ABSOLUTE CYCLIC DEPENDENCY
+
+When it is statically known that two elements directly or indirectly depend on each other.
+
+### AFFECTED ELEMENTS
+- function calls
+- type instantiation
+- module import
+- inheritance
+
+
+#### USE BEFORE DECLARATION
+
+When a reference is used before it is declared.
+
+### AFFECTED ELEMENTS
+- variables
+- types
+- functions
+
+
+#### CONFLICT RESOLUTION
+
+Conflict emerges whne there a two occurence of a particular element
+
+### AFFECTED ELEMENTS
+- inherited methods
+- function overloads
+- method overrides
+
+### POSSIBLE SOLUTIONS
+- Dispatch table
+- MRO algorithm
+- Scope tree
+- Call graph
+- Import graph
+- Inheritance tree
