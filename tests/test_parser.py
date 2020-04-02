@@ -498,7 +498,7 @@ def test_opt_combinator_function_parses_matched_zero_or_one_sequence_successfull
     assert parser2.combinator_data == {}
 
 
-def test_parse_power_expr_parses_power_expression_successfully():
+def test_power_expr_function_parses_power_expression_successfully():
     # TODO: More complex examples
     result0 = Parser.from_code("5^6").power_expr()
     result1 = Parser.from_code("5²").power_expr()
@@ -515,7 +515,7 @@ def test_parse_power_expr_parses_power_expression_successfully():
     )
 
 
-def test_parse_unary_expr_root_expression_successfully():
+def test_unary_expr_function_parses_root_expression_successfully():
     # TODO: More complex examples
     result0 = Parser.from_code("-6").unary_expr()
     result1 = Parser.from_code("-5²").unary_expr()
@@ -537,19 +537,253 @@ def test_parse_unary_expr_root_expression_successfully():
     )
 
 
-def test_parse_mul_expr_multiply_expression_successfully():
+def test_mul_expr_function_parses_multiply_expression_successfully():
     # TODO: More complex examples
-    result0 = Parser.from_code("-5.0f").parse_mul_expr()
-    result1 = Parser.from_code("0xff*3//4").parse_mul_expr()
-    result2 = Parser.from_code("√~5f²").parse_mul_expr()
-    result3 = Parser.from_code("5^5*3").parse_mul_expr()
-    result4 = Parser.from_code("-5/-4*+3").parse_mul_expr()
+    result0 = Parser.from_code("-5").mul_expr()
+    result1 = Parser.from_code("0xff*3//4").mul_expr()
+    result2 = Parser.from_code("5%5^3").mul_expr()
+    result3 = Parser.from_code("5²/-4@+3").mul_expr()
 
-    # assert result0 == BinaryExpr(Integer(0), Operator(1), Integer(2))
-    # assert result1 == UnaryExpr(Integer(0), Operator(1))
-    # assert result2 == Integer(0)
-    # assert result3 == UnaryExpr(UnaryExpr(Integer(1), Operator(2)), Operator(0))
-    # assert result4 == UnaryExpr(
-    #     BinaryExpr(Integer(1), Operator(2), Integer(3)), Operator(0)
-    # )
+    assert result0 == UnaryExpr(Integer(1), Operator(0))
+    assert result1 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3), Integer(4)
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        UnaryExpr(Integer(7), Operator(6)),
+    )
 
+
+def test_sum_expr_function_parses_sum_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5²").sum_expr()
+    result1 = Parser.from_code("0xff+3-4").sum_expr()
+    result2 = Parser.from_code("5-5*3").sum_expr()
+    result3 = Parser.from_code("5²/-4--5*+3").sum_expr()
+
+    assert result0 == UnaryExpr(Integer(0), Operator(1))
+    assert result1 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3), Integer(4)
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        BinaryExpr(
+            UnaryExpr(Integer(7), Operator(6)),
+            Operator(8),
+            UnaryExpr(Integer(10), Operator(9))
+        )
+    )
+
+
+def test_shift_expr_function_parses_shift_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5²").shift_expr()
+    result1 = Parser.from_code("0xff>>3<<4").shift_expr()
+    result2 = Parser.from_code("5>>5*3").shift_expr()
+    result3 = Parser.from_code("5²+-4<<-5*+3").shift_expr()
+
+    assert result0 == UnaryExpr(Integer(0), Operator(1))
+    assert result1 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3), Integer(4)
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        BinaryExpr(
+            UnaryExpr(Integer(7), Operator(6)),
+            Operator(8),
+            UnaryExpr(Integer(10), Operator(9))
+        )
+    )
+
+
+def test_and_expr_function_parses_and_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5²").and_expr()
+    result1 = Parser.from_code("0xff&3&4").and_expr()
+    result2 = Parser.from_code("5&5>>3").and_expr()
+    result3 = Parser.from_code("5²<<-4&-5-+3").and_expr()
+
+    assert result0 == UnaryExpr(Integer(0), Operator(1))
+    assert result1 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3), Integer(4)
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        BinaryExpr(
+            UnaryExpr(Integer(7), Operator(6)),
+            Operator(8),
+            UnaryExpr(Integer(10), Operator(9))
+        )
+    )
+
+
+def test_xor_expr_function_parses_xor_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5²").xor_expr()
+    result1 = Parser.from_code("0xff||3||4").xor_expr()
+    result2 = Parser.from_code("5||5&3").xor_expr()
+    result3 = Parser.from_code("5²&-4||-5<<+3").xor_expr()
+
+    assert result0 == UnaryExpr(Integer(0), Operator(1))
+    assert result1 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3), Integer(4)
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        BinaryExpr(
+            UnaryExpr(Integer(7), Operator(6)),
+            Operator(8),
+            UnaryExpr(Integer(10), Operator(9))
+        )
+    )
+
+
+def test_or_expr_function_parses_or_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5²").or_expr()
+    result1 = Parser.from_code("0xff|3|4").or_expr()
+    result2 = Parser.from_code("5|5||3").or_expr()
+    result3 = Parser.from_code("5²||-4|-5<<+3").or_expr()
+
+    assert result0 == UnaryExpr(Integer(0), Operator(1))
+    assert result1 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3), Integer(4)
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        BinaryExpr(
+            UnaryExpr(Integer(7), Operator(6)),
+            Operator(8),
+            UnaryExpr(Integer(10), Operator(9))
+        )
+    )
+
+
+def test_comparison_expr_function_parses_comparison_expression_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5²").comparison_expr()
+    result1 = Parser.from_code("0xff<3>4==5<=0b101>=0o767").comparison_expr()
+    result2 = Parser.from_code("5 is 5|3").comparison_expr()
+    result3 = Parser.from_code("5²*-4!=-5<<+3").comparison_expr()
+    result4 = Parser.from_code("5|5 not in 3").comparison_expr()
+    result5 = Parser.from_code("5-5 is not 3").comparison_expr()
+
+    assert result0 == UnaryExpr(Integer(0), Operator(1))
+    assert result1 == BinaryExpr(
+        BinaryExpr(
+            BinaryExpr(
+                BinaryExpr(
+                    BinaryExpr(Integer(0), Operator(1), Integer(2)),
+                    Operator(3),
+                    Integer(4)
+                ),
+                Operator(5),
+                Integer(6)
+            ),
+            Operator(7),
+            Integer(8)
+        ),
+        Operator(9),
+        Integer(10),
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        BinaryExpr(
+            UnaryExpr(Integer(7), Operator(6)),
+            Operator(8),
+            UnaryExpr(Integer(10), Operator(9))
+        )
+    )
+    assert result4 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3, 4), Integer(5),
+    )
+    assert result5 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3, 4), Integer(5),
+    )
+
+
+def test_not_test_function_parses_not_test_successfully():
+    # TODO: More complex examples
+    result0 = Parser.from_code("5²").not_test()
+    result1 = Parser.from_code("0xff&3&4").not_test()
+    result2 = Parser.from_code("5&5>>3").not_test()
+    result3 = Parser.from_code("5²<<-4&-5-+3").not_test()
+
+    print('', result0, result1, result2, result3, sep="\n\n>>>> ")
+
+    assert result0 == UnaryExpr(Integer(0), Operator(1))
+    assert result1 == BinaryExpr(
+        BinaryExpr(Integer(0), Operator(1), Integer(2)), Operator(3), Integer(4)
+    )
+    assert result2 == BinaryExpr(
+        Integer(0), Operator(1), BinaryExpr(Integer(2), Operator(3), Integer(4))
+    )
+    assert result3 == BinaryExpr(
+        BinaryExpr(
+            UnaryExpr(Integer(0), Operator(1)),
+            Operator(2),
+            UnaryExpr(Integer(4), Operator(3)),
+        ),
+        Operator(5),
+        BinaryExpr(
+            UnaryExpr(Integer(7), Operator(6)),
+            Operator(8),
+            UnaryExpr(Integer(10), Operator(9))
+        )
+    )

@@ -67,8 +67,8 @@ comparison_op =
     | '!='
     | 'in'
     | 'not' 'in'
-    | 'is'
     | 'is' 'not'
+    | 'is'
 
 comparison_expr =
     | or_expr (comparison_op or_expr)*

@@ -137,6 +137,7 @@ class Null(AST):
     `parser.opt`, a method that matches zeor or one occurence of a sequence,
     returns a Null if there is zero occurence of a sequence to show it is still valid.
     """
+
     pass
 
 
@@ -196,8 +197,9 @@ class PrefixedString(AST):
 
 
 class Operator(AST):
-    def __init__(self, op):
+    def __init__(self, op, rem_op=None):
         self.op = op
+        self.rem_op = rem_op  # For when operator spans two tokens like `not in`
 
 
 class UnaryExpr(AST):

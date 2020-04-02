@@ -205,6 +205,10 @@ class Parser:
         """
         A combinator function for parsing PEG sequence.
         Supports function and out argument for pulling out relevant data.
+
+        NOTE:
+            Currently not used. Surprisingly implementing parsers logic give more concise code.
+            And combinators have terrible performance anyway, so I may remove this impl later.
         """
 
         def func():
@@ -238,6 +242,10 @@ class Parser:
         """
         A combinator function for parsing PEG alternatives.
         Supports function and out argument f0r pulling out relevant data.
+
+        NOTE:
+            Currently not used. Surprisingly implementing parsers logic give more concise code.
+            And combinators have terrible performance anyway, so I may remove this impl later.
         """
 
         def func():
@@ -273,6 +281,10 @@ class Parser:
         """
         A combinator function for parsing one or more occurences of a PEG sequence.
         Supports function and out argument for pulling out relevant data.
+
+        NOTE:
+            Currently not used. Surprisingly implementing parsers logic give more concise code.
+            And combinators have terrible performance anyway, so I may remove this impl later.
         """
 
         def func():
@@ -305,6 +317,10 @@ class Parser:
         """
         A combinator function for parsing zero or more occurences of a PEG sequence.
         Supports function and out argument for pulling out relevant data.
+
+        NOTE:
+            Currently not used. Surprisingly implementing parsers logic give more concise code.
+            And combinators have terrible performance anyway, so I may remove this impl later.
         """
 
         def func():
@@ -337,6 +353,10 @@ class Parser:
         """
         A combinator function for parsing zero or one occurence of a PEG sequence.
         Supports function and out argument for pulling out relevant data.
+
+        NOTE:
+            Currently not used. Surprisingly implementing parsers logic give more concise code.
+            And combinators have terrible performance anyway, so I may remove this impl later.
         """
 
         def func():
@@ -528,13 +548,14 @@ class Parser:
 
         while True:
             operator = None
-            second_token = None
+            rem_operator = None
 
             for i in operators:
                 if type(i) == tuple:
+                    # Fetch the two elements in tuple.
                     operator = self.consume_string(i[0])
-                    second_token = self.consume_string(i[1])
-                    if operator is None or second_token is None:
+                    rem_operator = self.consume_string(i[1])
+                    if operator is not None or rem_operator is not None:
                         break
                 else:
                     if (operator := self.consume_string(i)) is not None:
@@ -548,9 +569,8 @@ class Parser:
             if rhs is None:
                 break
 
-            result = BinaryExpr(result, Operator(operator, second_token), rhs)
+            result = BinaryExpr(result, Operator(operator, rem_operator), rhs)
 
-        print("\n\n>>>> ", result)
         return result
 
     @backtrackable
@@ -612,7 +632,7 @@ class Parser:
     def comparison_expr(self):
         """
         comparison_op =
-            | '<' | '>' | '==' | '>=' | '<=' | '!=' | 'in' | 'not' 'in' | 'is' | 'is' 'not'
+            | '<' | '>' | '==' | '>=' | '<=' | '!=' | 'in' | 'not' 'in' | 'is' 'not' | 'is'
 
         rule = or_expr (comparison_op or_expr)* [left associative]
         """
@@ -628,8 +648,8 @@ class Parser:
                 "!=",
                 "in",
                 ("not", "in"),
-                "is",
                 ("is", "not"),
+                "is",
             ],
         )
 
