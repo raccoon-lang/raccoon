@@ -11,7 +11,7 @@ black = "*"
 pytest-pythonpath = "*"
 pytest-cov = "*"
 click = "*"
-llvmlite = "*"
+llvmlite = "==0.29.0"
 
 [requires]
 python_version = "3.8"

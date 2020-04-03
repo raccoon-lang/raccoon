@@ -23,11 +23,15 @@ from .ast import (
     BinaryExpr,
     IfExpr,
     FuncParam,
+    PositionalParamsSeparator,
     FuncParams,
     FuncExpr,
     TupleRestExpr,
     NamedTupleRestExpr,
-    ComprehensionFor,
+    Comprehension,
+    Yield,
+    Dict,
+    Set
 )
 
 
@@ -663,13 +667,10 @@ class Parser:
         result = self.comparison_expr()
 
         while True:
-            not_op = self.consume_string("not")
-            if not_op is None:
+            if self.consume_string("not") is None:
                 break
 
             result = UnaryExpr(result, Operator(not_op))
-
-        print(f"\n>>>> {result}")
 
         return result
 
@@ -700,20 +701,14 @@ class Parser:
 
         result = self.or_test()
 
-        if_ = self.consume_string("if")
-        or_test = self.or_test()  # TODO
-        else_ = self.consume_string("else")
-        or_test2 = self.or_test()  # TODO
-
         if (
-            (if_ is not None)
-            and (or_test is not None)
-            and (else_ is not None)
-            and (or_test2 is not None)
+            result is not None
+            and (self.consume_string("if") is not None)
+            and (or_test := self.or_test()) is not None
+            and self.consume_string("else") is not None
+            and (or_test2 := self.or_test()) is not None
         ):
             result = IfExpr(result, or_test, or_test2)
-
-        print(f"\n>>>> {result}")
 
         return result
 
@@ -731,10 +726,10 @@ class Parser:
 
         result = FuncParam(identifier)
 
-        assignment_op = self.consume_string("=")
-        test = self.test()  # TODO
-
-        if assignment_op is not None and test is not None:
+        if (
+            self.consume_string("=") is not None
+            and (test := self.test()) is not None
+        ):
             result.default_value_expr = test
 
         return result
@@ -745,91 +740,87 @@ class Parser:
         """
         rule =
             | '(' func_params? ')'
-            | lambda_param (',' lambda_param)* (',' '*' lambda_param (',' lambda_param)*)?
-                (',' '**' lambda_param)? ','?
+            | lambda_param (',' lambda_param)* ('/', lambda_param (',' lambda_param)*)? (',' '*'
+              lambda_param (',' lambda_param)*)? (',' '**' lambda_param)? ','?
             | '*' lambda_param (',' lambda_param)* (',' '**' lambda_param)? ','?
             | '**' lambda_param ','?
         """
 
-        # FIRST ALTERNATIVE
-        open_brackets = self.consume_string("(")
-        func_params = self.lambda_params()  # TODO
-        close_brackets = self.consume_string(")")
+        # TODO: Fix impl for `'(' func_params? ')'` to use self.func_params()
 
+        # FIRST ALTERNATIVE
         if (
-            (open_brackets is not None)
-            and (func_params is not None)
-            and (close_brackets is not None)
+            self.consume_string("(") is not None
+            and (func_params := self.lambda_params()) is not None
+            and self.consume_string(")") is not None
         ):
             return func_params
 
         # SECOND ALTERNATIVE
-        param = self.lambda_param()
-
-        if param is not None:
+        if (param := self.lambda_param()) is not None:
             params = [param]
-            while True:
-                comma = self.consume_string(",")
-                param = self.lambda_param()
+            while (
+                self.consume_string(",") is not None
+                and (param := self.lambda_param()) is not None
+            ):
+                params.append(param)
 
-                if comma is not None and param is not None:
+            if self.consume_string(",") is not None and self.consume_string("/") is not None:
+                params.append(PositionalParamsSeparator())
+
+                while (
+                    self.consume_string(",") is not None
+                    and (param := self.lambda_param()) is not None
+                ):
                     params.append(param)
-                else:
-                    break
 
             tuple_rest_param = None
-            comma = self.consume_string(",")
-            star = self.consume_string("*")
-            param = self.lambda_param()
-
-            if comma is not None and star is not None and param is not None:
+            if (
+                self.consume_string(",") is not None
+                and self.consume_string("*") is not None
+                and (param := self.lambda_param()) is not None
+            ):
                 tuple_rest_param = param
 
-            named_tuple_params = []
+            keyword_only_params = []
             if tuple_rest_param:
-                while True:
-                    comma = self.consume_string(",")
-                    param = self.lambda_param()
-
-                    if comma is not None and param is not None:
-                        named_tuple_params.append(param)
-                    else:
-                        break
+                while (
+                    self.consume_string(",") is not None
+                    and (param := self.lambda_param()) is not None
+                ):
+                    keyword_only_params.append(param)
 
             named_tuple_rest_param = None
-            comma = self.consume_string(",")
-            star = self.consume_string("**")
-            param = self.lambda_param()
-
-            if comma is not None and star is not None and param is not None:
+            if (
+                self.consume_string(",") is not None
+                and self.consume_string("**") is not None
+                and (param := self.lambda_param()) is not None
+            ):
                 named_tuple_rest_param = param
 
             return FuncParams(
-                params, tuple_rest_param, named_tuple_params, named_tuple_rest_param
+                params, tuple_rest_param, keyword_only_params, named_tuple_rest_param
             )
 
         # THIRD ALTERNATIVE
-        tuple_star = self.consume_string("*")
-        tuple_rest_param = self.lambda_param()
-
-        if tuple_star is not None and tuple_rest_param is not None:
+        if (
+            self.consume_string("*") is not None
+            and (tuple_rest_param := self.lambda_param()) is not None
+        ):
             named_tuple_params = []
             if tuple_rest_param:
-                while True:
-                    comma = self.consume_string(",")
-                    param = self.lambda_param()
-
-                    if comma is not None and param is not None:
-                        named_tuple_params.append(param)
-                    else:
-                        break
+                while (
+                    self.consume_string(",") is not None
+                    and (param := self.lambda_param()) is not None
+                ):
+                    named_tuple_params.append(param)
 
             named_tuple_rest_param = None
-            comma = self.consume_string(",")
-            star = self.consume_string("**")
-            param = self.lambda_param()
-
-            if comma is not None and star is not None and param is not None:
+            if (
+                self.consume_string(",") is not None
+                and self.consume_string("**") is not None
+                and (param := self.lambda_param()) is not None
+            ):
                 named_tuple_rest_param = param
 
             return FuncParams(
@@ -837,10 +828,10 @@ class Parser:
             )
 
         # FOURTH ALTERNATIVE
-        star = self.consume_string("**")
-        named_tuple_rest_param = self.lambda_param()
-
-        if star is not None and named_tuple_rest_param is not None:
+        if (
+            self.consume_string("**") is not None
+            and (named_tuple_rest_param := self.lambda_param()) is not None
+        ):
             return FuncParams(None, None, None, named_tuple_rest_param)
 
         return None
@@ -851,15 +842,15 @@ class Parser:
         """
         rule = 'lambda' lambda_params? ':' expr
         """
+
         result = None
 
-        lambda_token = self.consume_string("lambda")
-        lambda_params = self.lambda_params()
-        colon = self.consume_string(":")
-        test = self.test()  # TODO
-
-        if lambda_token is not None and colon is not None and test is not None:
-            result = FuncExpr(None, lambda_params, [test])
+        if (
+            self.consume_string("lambda") is not None
+            and self.consume_string(":") is not None
+            and (test := self.test()) is not None
+        ):
+            result = FuncExpr(None, self.lambda_params(), [test])
 
         return result
 
@@ -869,6 +860,7 @@ class Parser:
         """
         rule = test | lambda_expr_def
         """
+
         result = self.test()
         if result is None:
             result = self.lambda_expr_def()
@@ -883,6 +875,7 @@ class Parser:
         """
         rule = expr (',' expr)* ','?
         """
+
         result = self.expr()
 
         if result is None:
@@ -890,12 +883,11 @@ class Parser:
 
         result = [result]
 
-        while True:
-            comma = self.consume_string(",")
-            expr = self.expr()
-
-            if comma is not None and expr is not None:
-                result.append(expr)
+        while (
+            self.consume_string(",") is not None
+            and (expr := self.expr()) is not None
+        ):
+            result.append(expr)
 
         self.consume_string(",")
 
@@ -907,6 +899,7 @@ class Parser:
         """
         rule = ('*' | '**')? expr
         """
+
         is_tuple_rest = True
 
         rest = self.consume_string("*")
@@ -933,6 +926,7 @@ class Parser:
         """
         rule = rest_expr (',' rest_expr)* ','?
         """
+
         result = self.rest_expr()
 
         if result is None:
@@ -940,12 +934,11 @@ class Parser:
 
         result = [result]
 
-        while True:
-            comma = self.consume_string(",")
-            rest_expr = self.rest_expr()
-
-            if comma is not None and rest_expr is not None:
-                result.append(rest_expr)
+        while (
+            self.consume_string(",") is not None
+            and (rest_expr := self.rest_expr()) is not None
+        ):
+            result.append(rest_expr)
 
         self.consume_string(",")
 
@@ -957,29 +950,26 @@ class Parser:
         """
         rule = 'lambda' lambda_params? ':' indent statement+ dedent
         """
+
         result = None
 
-        lambda_token = self.consume_string("lambda")
-        lambda_params = self.lambda_params()
-        colon = self.consume_string(":")
-        indent = self.indent()
-
-        exprs = []
-        while True:
-            expr = self.expr()  # TODO
-            if expr is not None:
+        if (
+            self.consume_string("lambda") is not None
+            and (lambda_params := self.lambda_params()) is not None
+            and self.consume_string(":")
+            and self.indent()
+        ):
+            exprs = []
+            while (expr := self.expr()) is not None:
                 exprs.append(expr)
 
-        dedent = self.dedent()
-
-        if (
-            lambda_token is not None
-            and colon is not None
-            and indent is not None
-            and exprs
-            and dedent is not None
-        ):
-            result = FuncExpr(None, lambda_params, exprs)
+            # There should be at least an expression.
+            # TODO: Raise error if block has dedent but no expression.
+            if (
+                self.dedent() is not None
+                and len(expr) > 0
+            ):
+                result = FuncExpr(None, lambda_params, exprs)
 
         return result
 
@@ -991,6 +981,7 @@ class Parser:
             | expr
             | lambda_block_def
         """
+
         result = self.expr()
         if result is None:
             result = self.lambda_block_def()
@@ -1003,6 +994,7 @@ class Parser:
         """
         rule = indentable_expr (',' indentable_expr)* ','?
         """
+
         result = self.indentable_expr()
 
         if result is None:
@@ -1010,14 +1002,15 @@ class Parser:
 
         result = [result]
 
-        while True:
-            comma = self.consume_string(",")
-            indentable_expr = self.indentable_expr()
-
-            if comma is not None and indentable_expr is not None:
-                result.append(indentable_expr)
+        while (
+            self.consume_string(",") is not None
+            and (indentable_expr := self.indentable_expr()) is not None
+        ):
+            result.append(indentable_expr)
 
         self.consume_string(",")
+
+        return result
 
     @backtrackable
     @memoize
@@ -1025,6 +1018,7 @@ class Parser:
         """
         rule = ('*' | '**')? indentable_expr
         """
+
         is_tuple_rest = True
 
         rest = self.consume_string("*")
@@ -1051,6 +1045,7 @@ class Parser:
         """
         rule = rest_indentable_expr (',' rest_indentable_expr)* ','?
         """
+
         result = self.rest_indentable_expr()
 
         if result is None:
@@ -1058,37 +1053,13 @@ class Parser:
 
         result = [result]
 
-        while True:
-            comma = self.consume_string(",")
-            rest_expr = self.rest_indentable_expr()
-
-            if comma is not None and rest_expr is not None:
-                result.append(rest_expr)
+        while (
+            self.consume_string(",") is not None
+            and (rest_expr := self.rest_indentable_expr()) is not None
+        ):
+            result.append(rest_expr)
 
         self.consume_string(",")
-
-        return result
-
-    @backtrackable
-    @memoize
-    def sync_comprehension_for(self):
-        """
-        rule = 'for' lhs 'in' indentable_expr
-        """
-        result = None
-
-        for_ = self.consume_string("for")
-        identifier = self.identifier()  # TODO
-        in_ = self.consume_string("in")
-        indentable_expr = self.indentable_expr()
-
-        if (
-            for_ is not None
-            and identifier is not None
-            and in_ is not None
-            and indentable_expr is not None
-        ):
-            result = ComprehensionFor(identifier, indentable_expr, [])
 
         return result
 
@@ -1098,14 +1069,12 @@ class Parser:
         """
         rule = 'where' indentable_exprs
         """
+
         result = None
 
-        where_ = self.consume_string("where")
-        indentable_expr = self.indentable_expr()
-
         if (
-            where_ is not None
-            and indentable_expr is not None
+            self.consume_string("where") is not None
+            and (indentable_expr := self.indentable_expr()) is not None
         ):
             result = indentable_expr
 
@@ -1113,31 +1082,52 @@ class Parser:
 
     @backtrackable
     @memoize
-    def comprehension_for(self):
+    def sync_comprehension_for(self):
         """
-        rule = 'async'? sync_comprehension_for
+        rule = 'for' lhs 'in' indentable_expr comprehension_iter?
         """
-        async_ = bool(self.consume_string("async"))
-        result = self.sync_comprehension_for()
 
-        if result is None:
-            return None
+        result = None
 
-        result.is_async = async_
+        # TODO: Change identifier to lhs
+
+        if (
+            self.consume_string("for") is not None
+            and (identifier := self.identifier()) is not None
+            and self.consume_string("in") is not None
+            and (indentable_expr := self.indentable_expr()) is not None
+        ):
+            result = Comprehension(None, identifier, indentable_expr)
+
+            if (comprehension_where := self.comprehension_where()):
+                result.where_exprs = comprehension_where
 
         return result
 
     @backtrackable
     @memoize
-    def comprehension_iter(self):
+    def comprehension_for(self):
         """
-        rule =
-            | comprehension_for
-            | comprehension_where
+        rule = 'async'? sync_comprehension_for ('async'? sync_comprehension_for)*
         """
-        result = self.comprehension_for()
+
+        is_async = bool(self.consume_string("async"))
+        result = self.sync_comprehension_for()
+
         if result is None:
-            result = self.comprehension_where()
+            return None
+
+        result.is_async = is_async
+
+        temp_result = result
+        while True:
+            is_async = bool(self.consume_string("async"))
+            if (nested_comprehension := self.sync_comprehension_for()) is not None:
+                temp_result.nested_comprehension = nested_comprehension
+                temp_result.is_async = is_async
+                temp_result = temp_result.nested_comprehension
+                continue
+            break
 
         return result
 
@@ -1146,39 +1136,27 @@ class Parser:
     def indentable_exprs_or_comprehension(self):
         """
         rule =
-            | rest_indentable_expr comprehension_for comprehension_iter*
+            | rest_indentable_expr comprehension_for
             | rest_indentable_expr (',' rest_indentable_expr)* ','?
         """
+
         # FIRST ALTERNATIVE
-        rest_indentable_expr = self.rest_indentable_expr()
-        comprehension_for = self.comprehension_for()
-
-        if rest_indentable_expr is not None and comprehension_for is not None:
-            comprehension_fors = [comprehension_for]
-
-            while True:
-                comprehension_iter = self.comprehension_iter()
-                if comprehension_iter is None:
-                    break
-                if type(comprehension_iter) == ComprehensionFor:
-                    comprehension_fors.append(comprehension_iter)
-                else:
-                    comprehension_fors[-1].where_exprs.append(comprehension_iter)
-
-            return comprehension_fors
+        if (
+            (rest_indentable_expr := self.rest_indentable_expr()) is not None
+            and (comprehension_for := self.comprehension_for()) is not None
+        ):
+            comprehension_for.expr = rest_indentable_expr
+            return comprehension_for
 
         # SECOND ALTERNATIVE
-        rest_indentable_expr = self.rest_indentable_expr()
-
-        if rest_indentable_expr is not None:
+        if (rest_indentable_expr := self.rest_indentable_expr()) is not None:
             rest_indentable_exprs = [rest_indentable_expr]
 
-            while True:
-                comma = self.consume_string(",")
-                rest_expr = self.rest_indentable_expr()
-
-                if comma is not None and rest_expr is not None:
-                    rest_indentable_exprs.append(rest_expr)
+            while (
+                self.consume_string(",") is not None
+                and (rest_expr := self.rest_indentable_expr()) is not None
+            ):
+                rest_indentable_exprs.append(rest_expr)
 
             self.consume_string(",")
 
@@ -1188,11 +1166,107 @@ class Parser:
 
     @backtrackable
     @memoize
-    def yield_argument():
+    def yield_argument(self):
         """
         rule =
             | 'from' indentable_expr
             | indentable_exprs
         """
 
-        pass
+        # FIRST ALTERNATIVE
+        if (
+            self.consume_string("from") is not None
+            and (indentable_expr := self.indentable_expr()) is not None
+        ):
+            return Yield([indentable_expr], is_yield_from=True)
+
+        # SECOND ALTERNATIVE
+        indentable_exprs = self.indentable_exprs()
+
+        return Yield(indentable_exprs) if indentable_exprs is not None else None
+
+    @backtrackable
+    @memoize
+    def yield_expr(self):
+        """
+        rule = 'yield' yield_argument?
+        """
+
+        result = None
+
+        if (yield_ := self.consume_string("yield")) is not None:
+            if (yield_argument := self.yield_argument()) is not None:
+                return yield_argument
+
+            result = Yield([])
+
+        return result
+
+    @backtrackable
+    @memoize
+    def expr_suite(self):
+        """
+        rule =
+            | rest_indentable_expr
+            | indent rest_indentable_expr dedent
+        """
+
+        # FIRST ALTERNATIVE
+        if (rest_indentable_expr := self.rest_indentable_expr()) is not None:
+            return rest_indentable_expr
+
+        # SECOND ALTERNATIVE
+        if (
+            self.indent() is not None
+            and (rest_indentable_expr := self.rest_indentable_expr()) is not None
+            and self.dedent() is not None
+        ):
+            return rest_indentable_expr
+
+        return None
+
+    @backtrackable
+    @memoize
+    def dict_or_set(self):
+        """
+        rule =
+            | test ':' expr_suite (',' test ':' expr_suite)* ','?
+            | test ':' expr_suite comprehension_for
+            | rest_indentable_expr comprehension_for
+            | rest_indentable_exprs
+        """
+
+        # FIRST ALTERNATIVE
+        if (
+            (test := self.test()) is not None
+            and self.consume_string(":") is not None
+            and (expr_suite := self.expr_suite()) is not None
+        ):
+            key_value_pairs = [(test, expr_suite)]
+
+            while (
+                self.consume_string(",") is not None
+                and (test := self.test()) is not None
+                and self.consume_string(":") is not None
+                and (expr_suite := self.expr_suite()) is not None
+            ):
+                key_value_pairs.append((test, expr_suite))
+
+            self.consume(',')
+
+            return Dict(key_value_pairs)
+
+        # SECOND ALTERNATIVE
+        if (
+            (test := self.test()) is not None
+            and self.consume_string(":") is not None
+            and (expr_suite := self.expr_suite()) is not None
+            and (expr_suite := self.expr_suite()) is not None
+        ):
+            return Dict()
+
+        # THIRD ALTERNATIVE
+
+        # FOURTH ALTERNATIVE
+        return None
+

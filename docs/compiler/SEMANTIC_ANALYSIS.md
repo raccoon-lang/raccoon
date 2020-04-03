@@ -81,6 +81,16 @@
     - method overrides
 
 
+- WRONG CONTEXT
+
+    For certain tokens that the parser allowed through but exist in the wrong context
+
+    #### AFFECTED ELEMENTS
+    - yield statement
+    - return statement
+    - rest expression
+
+
 #### POSSIBLE SOLUTIONS
 - Dispatch table
 - MRO algorithm
@@ -90,4 +100,38 @@
 - Inheritance tree
 
 
-####
+# RESTRICTIONS
+#### TYPES
+- TYPE RESTRICTION
+
+    Type annotation prevents a constant/variable from being used in a way that does not conform to the type's blueprint.
+
+    #### AFFECTED ELEMENTS
+    - variables
+    - classes
+    - functions
+
+
+- CONSTANT RESTRICTION
+
+    Constant annotation prevents re-assigning to a constant.
+
+    #### AFFECTED ELEMENTS
+    - variables
+
+
+# LOWERING
+#### TYPES
+- AST CONVERSION
+
+    Abstract ASTs are converted to Low-level AST.
+
+    #### AFFECTED ELEMENTS
+    - Abstract ASTs
+
+- MACRO EXPANSION
+
+    Converts macros to Low-level AST at semantic analysis time.
+
+    #### AFFECTED ELEMENTS
+    - macros

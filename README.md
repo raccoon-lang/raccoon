@@ -6,16 +6,6 @@ Corona is a language with Python 3.x syntax that is amenable to static analysis.
 
 **Corona will not maintain complete syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Corona. For example, Corona doesn't have runtime module modification.
 
-There are other similarly oriented projects, but they are all objectively different from Corona.
-
-MicroPython is a well-optimized Python interpreter (with some JIT support) while Nuitka compiles Python to C. These two projects still allow dynamic aspects of Python, which means their performances may suffer from those parts.
-
-Vyper (not to be mistaken for Corona) primarily targets Ethereum VM and not designed for general-purpose programming.
-
-Also unlike Nim, Boo and Cobra, Corona tries to stick to Python syntax and semantics as much as possible and wherever it makes sense.
-
-RPython is quite similar to this project, but the developers have [made it clear](https://rpython.readthedocs.io/en/latest/faq.html#do-i-have-to-rewrite-my-programs-in-rpython) that their goal is not to make RPython a standalone language.
-
 ### SETTING UP THE PROJECT
 ##### REQUIREMENTS
 - [Python 3.7+](https://www.python.org/downloads/) - Python interpreter

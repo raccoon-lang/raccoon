@@ -1,3 +1,0 @@
-"""
-Declaration and usage scopes
-"""

@@ -126,21 +126,17 @@ rest_indentable_expr =
 rest_indentable_exprs =
     | rest_indentable_expr (',' rest_indentable_expr)* ','?
 
-sync_comprehension_for =
-    | 'for' lhs 'in' indentable_expr
-
-comprehension_where =
+comprehension_where = # Diverges from Python's `comp_if`
     | 'where' indentable_exprs
 
-comprehension_for =
-    | 'async'? sync_comprehension_for
+sync_comprehension_for =
+    | 'for' lhs 'in' indentable_expr comprehension_where?
 
-comprehension_iter =
-    | comprehension_for
-    | comprehension_where
+comprehension_for =
+    | 'async'? sync_comprehension_for ('async'? sync_comprehension_for)*
 
 indentable_exprs_or_comprehension =
-    | rest_indentable_expr comprehension_for comprehension_iter*
+    | rest_indentable_expr comprehension_for
     | rest_indentable_expr (',' rest_indentable_expr)* ','?
 
 yield_argument =
@@ -155,8 +151,10 @@ expr_suite =
     | indent rest_indentable_expr dedent
 
 dict_or_set =
-    | (test ':' expr_suite | rest_indentable_expr) comprehension_for comprehension_iter*
     | test ':' expr_suite (',' test ':' expr_suite)* ','?
+    | test ':' expr_suite comprehension_for
+    | rest_indentable_expr comprehension_for
+    | rest_indentable_exprs
 
 subscript =
     | test? ':' test? (':' test?)?

@@ -116,6 +116,18 @@ class UnaryOpKind(Enum):
             return None
 
 
+# Types related to ASTS
+class ComprehensionType(Enum):
+    """
+    Different types of comprehension expression
+    """
+
+    GENERATOR = 0
+    LIST = 1
+    DICT = 1
+    SET = 1
+
+
 class AST:
     """
     NOTE:
@@ -125,7 +137,11 @@ class AST:
     """
 
     def __repr__(self):
-        return f"{type(self).__name__}{str(vars(self))}"
+        type_name = type(self).__name__
+        fields = vars(self)
+        formatted_fields = ", ".join(["=".join([key, repr(value)]) for key, value in fields.items()])
+
+        return f"{type_name}({formatted_fields})"
 
     def __eq__(self, other):
         return vars(self) == vars(other) if isinstance(other, AST) else None
@@ -134,7 +150,7 @@ class AST:
 class Null(AST):
     """
     This class is useful for creating AST shim that can to be ignored.
-    `parser.opt`, a method that matches zeor or one occurence of a sequence,
+    `parser.opt`, a method that matches zero or one occurence of a sequence,
     returns a Null if there is zero occurence of a sequence to show it is still valid.
     """
 
@@ -223,20 +239,28 @@ class IfExpr(AST):
 
 
 class FuncParam(AST):
-    def __init__(self, name, type, spread_type, default_value_expr):
+    def __init__(self, name, type_annotation=None, default_value_expr=None):
         self.name = name
-        self.type = type
-        self.spread_type = spread_type
+        self.type_annotation = type_annotation
         self.default_value_expr = default_value_expr
+
+
+class PositionalParamsSeparator(AST):
+    def __init__(self):
+        pass
 
 
 class FuncParams(AST):
     def __init__(
-        self, params, tuple_rest_param, named_tuple_params, named_tuple_rest_param
+        self,
+        params,
+        tuple_rest_param=None,
+        keyword_only_params=[],
+        named_tuple_rest_param=None,
     ):
         self.params = params
         self.tuple_rest_param = tuple_rest_param
-        self.named_tuple_params = named_tuple_params
+        self.keyword_only_params = keyword_only_params
         self.named_tuple_rest_param = named_tuple_rest_param
 
 
@@ -257,19 +281,40 @@ class NamedTupleRestExpr(AST):
         self.expr = expr
 
 
-class ComprehensionFor(AST):
-    def __init__(self, for_lhs, in_expr, where_exprs, is_async=False):
-        self.for_lhs = for_lhs
-        self.in_expr = in_expr
-        self.where_exprs = where_exprs
-        self.is_sync = is_async
-
-
 class Comprehension(AST):
-    def __init__(self, type, expr, comprehension_fors, comprehension_wheres):
-        self.type = type
+    def __init__(
+        self,
+        expr,
+        var_expr,
+        iterable_expr,
+        comprehension_type=ComprehensionType.GENERATOR,
+        where_exprs=[],
+        is_async=False,
+        nested_comprehension=None,
+    ):
         self.expr = expr
-        self.comprehension_fors = comprehension_fors
+        self.var_expr = var_expr
+        self.iterable_expr = iterable_expr
+        self.comprehension_type = comprehension_type
+        self.where_exprs = where_exprs
+        self.is_async = is_async
+        self.nested_comprehension = nested_comprehension
+
+
+class Yield(AST):
+    def __init__(self, exprs, is_yield_from=False):
+        self.exprs = exprs
+        self.is_yield_from = is_yield_from
+
+
+class Dict(AST):
+    def __init__(self, key_value_pairs):
+        self.key_value_pairs = key_value_pairs
+
+
+class Set(AST):
+    def __init__(self, exprs):
+        self.exprs = exprs
 
 
 class AtomExpr(AST):
