@@ -1,5 +1,5 @@
 #! /usr/bin/env sh
-# Create a symlink of bin/corona.py at /usr/local/bin/corona
+# Create a symlink of bin/Raccoon.py at /usr/local/bin/Raccoon
 
 # Get the absolute path of where script is running from
 SOURCE="${BASH_SOURCE[0]}"
@@ -37,32 +37,32 @@ main() {
 # Prints help message
 help() {
 	echo ""
-	echo "============== CORONA BUILD UTILS ==================="
+	echo "============== Raccoon BUILD UTILS ==================="
 	echo ""
 	echo " [USAGE] : sh build.sh [comand]"
 	echo ""
 	echo " [COMMAND] :"
 	echo "    help  - print this help message"
-	echo "    setup - make corona command available system-wide"
+	echo "    setup - make Raccoon command available system-wide"
 	echo ""
 	echo "===================================================="
 	echo ""
 }
 
-# Makes corona command available system-wide
+# Makes Raccoon command available system-wide
 setup() {
-    local corona_sh_path="$script_dir/cli/corona.sh"
-    local corona_py_path="$script_dir/cli/corona.py"
+    local Raccoon_sh_path="$script_dir/cli/Raccoon.sh"
+    local Raccoon_py_path="$script_dir/cli/Raccoon.py"
 
-	display "Making corona.sh and corona.py executable"
-	chmod 777 $corona_sh_path && chmod 777 $corona_py_path
+	display "Making Raccoon.sh and Raccoon.py executable"
+	chmod 777 $Raccoon_sh_path && chmod 777 $Raccoon_py_path
 
 	if [ "$?" -ne 0 ]; then
 		exit 1
 	fi
 
-	displayln "Adding a link to corona.sh in /usr/local/bin"
-	ln -s $corona_sh_path /usr/local/bin/corona
+	displayln "Adding a link to Raccoon.sh in /usr/local/bin"
+	ln -s $Raccoon_sh_path /usr/local/bin/Raccoon
 
 	if [ "$?" -ne 0 ]; then
 		exit 2

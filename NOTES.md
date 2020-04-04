@@ -3,7 +3,7 @@
 
 ## PARSER
 
-Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's grammar is specified in PEG notation.
+Unlike CPython's LL(1) parser, Raccoon uses a packrat parser and the language's grammar is specified in PEG notation.
 
 - Results of all paths that are taken are memoized.
 - A parse function result should always be an AST. Avoid returning a parse tree.
@@ -13,9 +13,9 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Philosophy
 
-    Corona has certain worldviews that make the semantic analysis phase easier to understand and implement.
+    Raccoon has certain worldviews that make the semantic analysis phase easier to understand and implement.
 
-    - A function, in Corona implementation parlance, is a regular function, a method, a closure or an operator.
+    - A function, in Raccoon implementation parlance, is a regular function, a method, a closure or an operator.
     - Every object has a structure and classes are how we describe or classify those structures. We only think in terms of classes when we need to compare an object's structure with a class' blueprint structure.
     - Inheritance / variance is an abstraction we only care about for validation/type-checking purposes. Relationship between objects are only seen in terms of how similar their structures are.
     - Global variables are variables that persist throughout the lifetime of a program. Global variables include variables declared at the top-level, class fields and variables from a parent scope referenced by a closure.
@@ -173,7 +173,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
         ##### IMPLEMENTATION
 
-        Structural typing can be used in place of duck typing. In fact, Corona sees type and object relationships structurally.
+        Structural typing can be used in place of duck typing. In fact, Raccoon sees type and object relationships structurally.
 
         Functions are actually instantiations with abis that conform to argument binary structures.
 
@@ -360,13 +360,13 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
     #### IMPLEMENTATION
 
-    Corona is all about structural typing. It sees type unsafety and covariance as union types and inheritance as intersection types.
+    Raccoon is all about structural typing. It sees type unsafety and covariance as union types and inheritance as intersection types.
 
 - Introspection
 
     #### IMPLEMENTATION
 
-    Corona supports some level of introspection. The type of an object can be introspected for example. Since types of variables are known at compile time, specialized functions are generated for introspect-like behavior.
+    Raccoon supports some level of introspection. The type of an object can be introspected for example. Since types of variables are known at compile time, specialized functions are generated for introspect-like behavior.
 
 
     ```py
@@ -377,7 +377,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 #### SYNTACTIC AND SEMANTIC DIVERGENCE FROM PYTHON
 
 - Eval / exec
-    - There is no of eval or exec in Corona.
+    - There is no of eval or exec in Raccoon.
 
         ```py
         eval('2 + 3')
@@ -385,7 +385,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Introspection
 
-    - Corona doesn't have a bytecode IR, but it does have a wasm codegen that one can introspect.
+    - Raccoon doesn't have a bytecode IR, but it does have a wasm codegen that one can introspect.
 
         ```py
         from dis import dis
@@ -395,9 +395,9 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Declaration
 
-    - Declaration of classes and functions work a bit different in Corona.
+    - Declaration of classes and functions work a bit different in Raccoon.
 
-        Because Corona needs to determine a class and function at compile-time, it doesn't support dynamic loading of classes or functions the way Python does. It also doesn't provide a lot of hooks found in builtin module
+        Because Raccoon needs to determine a class and function at compile-time, it doesn't support dynamic loading of classes or functions the way Python does. It also doesn't provide a lot of hooks found in builtin module
 
 - Type annotations
 
@@ -415,7 +415,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Main
 
-    - Corona does not have the special `__name__` variable. Instead, Corona runs any top-level function with the name 'main' automatically.
+    - Raccoon does not have the special `__name__` variable. Instead, Raccoon runs any top-level function with the name 'main' automatically.
 
         ```py
         def main(args):
@@ -455,7 +455,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
         """
         ```
 
-    - A tuple element can be modified in Corona.
+    - A tuple element can be modified in Raccoon.
 
         ```py
         tup = (1, 2, 3)
@@ -496,7 +496,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Functions
 
-    - Coronas doesn't support spreading any iterable except tuples and named tuples as arguments to a function.
+    - Raccoons doesn't support spreading any iterable except tuples and named tuples as arguments to a function.
 
         ```py
         dc = { 'name': 'John', 'age': 45 }
@@ -530,7 +530,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Imports
 
-    - Corona resolves imported modules at compile-time
+    - Raccoon resolves imported modules at compile-time
 
         ```py
         name, age = "John", 45
@@ -542,7 +542,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Variable
 
-    - Corona doesn't support shadowing global variables or instance fields.
+    - Raccoon doesn't support shadowing global variables or instance fields.
 
         ```py
         num = 10
@@ -640,7 +640,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
     - Global interpreter lock
 
-        Corona is not affected by the GIL.
+        Raccoon is not affected by the GIL.
 
     - Async / await
 
@@ -659,7 +659,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - settrace
 
-    - Corona doesn't support modifying variables before the frame is run
+    - Raccoon doesn't support modifying variables before the frame is run
 
         ```py
         """
@@ -676,21 +676,41 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
         NOTE: The following semantic documentation may change.
 
-        Corona's async / await is very different from Python's. Unawaited asynchronous functions are executed on separate green threads.
+        Raccoon's async / await is very different from Python's. Unawaited asynchronous functions are executed on separate green threads.
 
 
 - Source file
 
-    - Multiple encoding support. Unlike CPython, Corona only support UTF-8 files.
+    - Multiple encoding support. Unlike CPython, Raccoon only support UTF-8 files.
 
 
 - Scoping rules
 
-    - Corona has different scoping rule. `if-elif-else`, `for-else`, `try-except-ensure` and `while-else` blocks all have their own scopes
+    - The iterator variables of a for loop is local to the loop's scope. It is a declaration rather than an assignment.
+
+    In Python
+
+    ```py
+    y = 100
+    for y in [1, 2, 3]:
+        print(y)
+
+    print(y) #=> 3
+    ```
+
+    in Raccoon
+
+    ```py
+    y = 100
+    for y in [1, 2, 3]:
+        print(y)
+
+    print(y) #=> 100
+    ```
 
 - Literal
 
-    - Corona does not support upper case letters to signify literal base.
+    - Raccoon does not support upper case letters to signify literal base.
 
         ```py
         bin_n = 0b10101
@@ -706,7 +726,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
         """
         ```
 
-    - Corona doesn't support the wide entire uppercase / reversed prefixes Python support in prefix strings.
+    - Raccoon doesn't support the wide entire uppercase / reversed prefixes Python support in prefix strings.
 
         ```py
         r"Hello"
@@ -732,13 +752,13 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
         """
         ```
 
-    - Corona uses `im` for imaginary numbers
+    - Raccoon uses `im` for imaginary numbers
 
         ```py
         imag = 3 + 4im
         ```
 
-        - Instead of the 'j' suffix, Corona expects a 'im' suffix
+        - Instead of the 'j' suffix, Raccoon expects a 'im' suffix
 
 - Generators
 
@@ -855,7 +875,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Comprehension
 
-    - `if` clauses in comprehensions are replaced by `where` clauses in Corona
+    - `if` clauses in comprehensions are replaced by `where` clauses in Raccoon
 
         ```py
         odds = [i for i in range(10) where i % 2]
@@ -863,13 +883,13 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 - Operators
 
-    - Corona's xor operator is '^'
+    - Raccoon's xor operator is '^'
 
         ```py
         2 ^ 5 == 25
         ```
 
-    - Corona's xor operator is '||'
+    - Raccoon's xor operator is '||'
 
         ```py
         0b101 || 0b011 == 0b001
@@ -884,7 +904,7 @@ Unlike CPython's LL(1) parser, Corona uses a packrat parser and the language's g
 
 
 ## GARBAGE COLLECTION
-In Swift, variables are deallocated in their declaration stack frames or parents of that. Never a child frame of the declaration scope. Corona takes a similar approach.
+In Swift, variables are deallocated in their declaration stack frames or parents of that. Never a child frame of the declaration scope. Raccoon takes a similar approach.
 
 - Automatic Reference Counting (ARC)
 

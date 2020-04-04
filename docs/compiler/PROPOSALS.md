@@ -1,40 +1,107 @@
 
 ## POSSIBLE ADDITIONS
 
-- Function declaration
-    ```py
-    def add(a: int, b: int) -> int
-    def add(int, int) -> int
-    def display(str)
-    ```
-
-- Type alias
+- Multiline lambda [In Progress]
 
     ```py
-    typealias IdentityFunc[T] = (T) -> T
+    map(
+        lambda x:
+            if x == 1:
+                0
+            else:
+                5
+        , array
+    )
+
+    map(
+        lambda x:
+            if x == 1:
+                0
+            else:
+                5
+        , array)
+
+    map(
+    lambda x:
+        if x == 1:
+            0
+        else:
+            5
+    , array)
+
+    map(lambda x:
+        if x == 1:
+            0
+        else:
+            5
+    , array)
+
+    map(
+        (lambda x:
+            if x == 1:
+                0
+            else:
+                5),
+        array
+    )
+
+    map((lambda x:
+        if x == 1:
+            0
+        else:
+            5
+        ), array
+    )
+
+    map((lambda x:
+        if x == 1:
+            0
+        else:
+            5),
+        array
+    )
+
+    map(
+        (
+            lambda x:
+                if x == 1:
+                    0
+                else:
+                    5
+        ),
+        array
+    )
+
+    map(
+    (lambda x:
+        if x == 1:
+            0
+        else:
+            5),
+    array)
+
     ```
 
-- Character
+
+- Coefficient expression [In Progress]
 
     ```py
-    ch0 = `a
-    ch1 = `\n
-    ch2 = `\uff
-    ch3 = `\890
-
-    string = ch0 + ch1
-
-    if `a <= ch <= `z:
-        print(ch)
+    n = 2
+    2n == 4
+    (3)n == 6
+    4(n) == 8
     ```
 
-- Regex literal
+- Where clause [In Progress]
 
-    ```js
-    regex = /\d+/
+    ```py
+    for i in 1..20 where i % 2:
+        print(i)
+
+    [i for i in ls where i > 5]
     ```
 
-- Type annotation revamp
+- Type annotation & Generics [In Progress]
 
     ```py
     # Type anotation
@@ -75,6 +142,39 @@
         return Person.[T](name)
 
     jane = get_person.[str]('Jane Doe')
+    ```
+
+- Function declaration
+    ```py
+    def add(a: int, b: int) -> int
+    def add(int, int) -> int
+    def display(str)
+    ```
+
+- Type alias
+
+    ```py
+    typealias IdentityFunc[T] = (T) -> T
+    ```
+
+- Character
+
+    ```py
+    ch0 = `a
+    ch1 = `\n
+    ch2 = `\uff
+    ch3 = `\890
+
+    string = ch0 + ch1
+
+    if `a <= ch <= `z:
+        print(ch)
+    ```
+
+- Regex literal
+
+    ```js
+    regex = /\d+/
     ```
 
 - None handling
@@ -129,27 +229,6 @@
     ls = [1, 2, 3, 4]
     len(ls)
     ls.len()
-    ```
-
-- Multiline lambda
-
-    ```py
-    map(
-    lambda x:
-        if x == 1:
-            0
-        else:
-            5
-    , array)
-
-    map(
-        array,
-        lambda x:
-            if x == 1:
-                0
-            else:
-                5
-    )
     ```
 
 - `const` keyword
@@ -294,16 +373,6 @@
     @classes(Person, Animal)
     ```
 
-
-- Coefficient expression [WIP]
-
-    ```py
-    n = 4
-    2n
-    (2)n
-    2(n)
-    ```
-
 - Abritary precision integer and float literal
 
     ```py
@@ -357,13 +426,6 @@
 
     range3 = list((1:10))
     range3 = set((1:10))
-    ```
-
-- Where clause
-
-    ```py
-    for i in 1..20 where i % 2:
-        print(i)
     ```
 
 - Underscore meaning discarded value or unprovided value

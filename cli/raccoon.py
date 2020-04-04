@@ -4,21 +4,29 @@ from argument_handler import ArgumentHandler
 
 
 @click.command(options_metavar="[options]")
-@click.option("--version", "-v", is_flag=True, help="Show Corona version")
+@click.option("--version", "-v", is_flag=True, help="Show Raccoon version")
 @click.option(
-    "-c", "--compile", "compile_string", nargs=1, help="Compile Corona code", type=str, metavar="<code>"
+    "-c",
+    "--compile",
+    "compile_string",
+    nargs=1,
+    help="Compile Raccoon code",
+    type=str,
+    metavar="<code>",
 )
-@click.option("--ast", is_flag=True, help="Output Corona AST")
-@click.option("--tokens", is_flag=True, help="Output Corona lexed tokens")
-@click.argument("program_file", nargs=1, required=False, type=click.Path(), metavar="[program file]")
+@click.option("--ast", is_flag=True, help="Output Raccoon AST")
+@click.option("--tokens", is_flag=True, help="Output Raccoon lexed tokens")
+@click.argument(
+    "program_file", nargs=1, required=False, type=click.Path(), metavar="[program file]"
+)
 def app(version, program_file, compile_string, ast, tokens):
     """
-    corona.py samples/test.co --ast
+    Raccoon.py samples/test.co --ast
     """
     ctx = click.get_current_context()
 
     if version:
-        click.echo("Corona 0.0.1")
+        click.echo("Raccoon 0.0.1")
 
     elif program_file:
         output_type = ArgumentHandler.get_output_type()

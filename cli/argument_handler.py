@@ -47,8 +47,25 @@ class ArgumentHandler:
         elif output_type == "ast":
             # result = Parser.from_code(code).subscript_index()
             # result = Parser.from_code(code).atom_trailer()
-            result = Parser.from_code(code).atom_expr()
+            # result = Parser.from_code(code).atom_expr()
+            # result = Parser.from_code(code).test()
+            # result = Parser.from_code(code).indentable_exprs_or_comprehension()
+            # result = Parser.from_code(code).expr()
             # result = Parser.from_code(code).with_statement()
+            # result = Parser.from_code(code).except_clause()
+            # result = Parser.from_code(code).try_statement()
+            # result = Parser.from_code(code).named_expr_or_test()
+            # result = Parser.from_code(code).while_statement()
+            # result = Parser.from_code(code).if_statement()
+            # result = Parser.from_code(code).type_annotation()
+            # result = Parser.from_code(code).intersection_type()
+            # result = Parser.from_code(code).union_type()
+            # result = Parser.from_code(code).class_arguments()
+            # result = Parser.from_code(code).class_def()
+            # result = Parser.from_code(code).lhs()
+            result = Parser.from_code(code).func_def()
+            # result = Parser.from_code(code).func_param()
+            # result = Parser.from_code(code).lambda_param()
         else:
             click.echo("Unimplemented Output Type!")
             return
@@ -60,7 +77,7 @@ class ArgumentHandler:
     def compile_file(
         file_path, optimization_level=0, display=False, output_type="exe",
     ):
-        # Corona only supports UTF-8 encoded source files.
+        # Raccoon only supports UTF-8 encoded source files.
         with open(file_path, mode="r", encoding="utf-8") as f:
             ArgumentHandler.compile_code(
                 f.read(), optimization_level, display, output_type

@@ -85,6 +85,13 @@ or_test =
 test =
     | or_test ('if' expr 'else' expr)?
 
+named_expr =
+    | identifier ":=" test
+
+named_expr_or_test = # Possible divergence from Python's `namedexpr_test`
+    | named_expr
+    | test
+
 lambda_param =
     | identifier ('=' expr)?
 
@@ -127,17 +134,13 @@ rest_indentable_exprs =
     | rest_indentable_expr (',' rest_indentable_expr)* ','?
 
 comprehension_where = # Diverges from Python's `comp_if`
-    | 'where' indentable_exprs
+    | 'where' (named_expr | indentable_exprs)
 
 sync_comprehension_for =
-    | 'for' lhs 'in' indentable_expr comprehension_where?
+    | 'for' for_lhs 'in' indentable_expr comprehension_where?
 
 comprehension_for =
     | 'async'? sync_comprehension_for ('async'? sync_comprehension_for)*
-
-indentable_exprs_or_comprehension =
-    | rest_indentable_expr comprehension_for
-    | rest_indentable_expr (',' rest_indentable_expr)* ','?
 
 yield_argument =
     | 'from' indentable_expr
@@ -150,11 +153,14 @@ expr_suite =
     | rest_indentable_expr
     | indent rest_indentable_expr dedent
 
-dict_or_set =
+indentable_exprs_or_comprehension = # Diverges from Python's `testlist_comp`
+    | (named_expr | rest_indentable_expr) comprehension_for
+    | (named_expr | rest_indentable_exprs)
+
+dict_or_set = # Diverges from Python's `dictorsetmaker`
     | test ':' expr_suite comprehension_for
     | test ':' expr_suite (',' test ':' expr_suite)* ','?
-    | rest_indentable_expr comprehension_for
-    | rest_indentable_exprs
+    | indentable_exprs_or_comprehension
 
 subscript_index =
     | test? ':' test? (':' test?)?
@@ -166,8 +172,8 @@ subscript =
 atom =
     | '(' indentable_exprs_or_comprehension? ')'
     | '(' yield_expr ')'
-    | '[' indentable_exprs_or_comprehension? ']'
     | '{' dict_or_set? '}'
+    | '[' indentable_exprs_or_comprehension? ']'
     | identifier
     | float
     | string+
@@ -175,15 +181,12 @@ atom =
     | 'True'
     | 'False'
 
-identifiers =
-    | identifier (',' identifier)* ','?
-
 argument =
     | identifier '=' indentable_expr
     | rest_indentable_expr
 
 arguments =
-    | identifier (',' identifier)* ','?
+    | argument (',' argument)* ','?
 
 atom_trailer =
     | '(' arguments? ')'
@@ -199,9 +202,6 @@ with_item =
 with_statement =
     | 'with' with_item (',' with_item)*  ','? ':' func_suite
 
-try_statement =
-    | 'try' ':' func_suite (except_clause+ else_clause? finally_clause? | finally_clause)
-
 else_clause =
     | 'else' ':' func_suite
 
@@ -211,50 +211,87 @@ except_clause =
 finally_clause =
     | 'finally' ':' func_suite
 
+try_statement =
+    | 'try' ':' func_suite (except_clause+ else_clause? finally_clause? | finally_clause)
+
 where_clause =
-    | 'where' expr
+    | 'where' (named_expr | expr)
 
 for_statement =
-    | 'for' lhs 'in' exprs where_clause? ':' func_suite else_clause?
+    | 'for' for_lhs 'in' exprs where_clause? ':' func_suite else_clause?
 
 while_statement =
-    | 'while' expr where_clause? ':' func_suite else_clause?
+    | 'while' named_expr_or_test where_clause? ':' func_suite else_clause?
 
 elif_clause =
-    | 'elif' test ':' func_suite
+    | 'elif' named_expr_or_test ':' func_suite
 
 if_statement =
-    | 'if' expr ':' func_suite elif_clause* else_clause?
+    | 'if' named_expr_or_test ':' func_suite elif_clause* else_clause?
 
-type =
-    | '[' type ']'
-    | '(' type (',' type)* ','? ')' ('->' type)?
-    | identifier ('[' type (',' type)* ','? ']')?
-    | type '?'
-    | type ('|' | '&') type
+generic_type =
+    | identifier '[' type_annotation, (',' type_annotation)* ','? ']'
 
-class_suite =
+function_type =
+    | '(' (type_annotation, (',' type_annotation)* ','?)? ')' '->' type_annotation
+
+list_type =
+    | '[' type_annotation, (',' type_annotation)* ','? ']'
+
+tuple_type =
+    | '(' type_annotation, (',' type_annotation)* ','? ')'
+
+intersection_type =
+    | atom_type ('&' atom_type)*
+
+union_type =
+    | intersection_type ('|' intersection_type)*
+
+atom_type =
+    | function_type
+    | list_type
+    | tuple_type
+    | generic_type
+    | identifier
+
+type_annotation =
+    | union_type
+
+identifiers =
+    | identifier (',' identifier)* ','?
+
+generics_annotation =
+    | '[' identifiers ']'
+
+class_suite = # Diverges from Python's `suite`
     | assignment_statement
     | indent (import_statement | assignment_statement | class_def | 'async'? func_def | string)+ dedent
 
-class_def = TODO
-    | 'class' identifier ('{' type (',' type)* ','? '}')? ('(' identifiers? ')')? ':' class_suite
+class_def = # Divergence from Python's `arglist`
+    | 'class' identifier generics_annotation? ('(' identifiers ')')? ':' class_suite
 
 lhs_argument_trailer =
-    | '(' arguments? ')' lhs_argument_trailer
     | '[' subscripts ']'
     | '.' identifier
 
 lhs_argument =
-    | ('*' | '**')? identifier lhs_argument_trailer*
+    | identifier atom_trailer*
 
-lhs =
-    | '(' lhs_argument (',' lhs_argument)* ','? ')'
-    | '[' lhs_argument (',' lhs_argument)* ','? ']'
+lhs_arguments =
     | lhs_argument (',' lhs_argument)* ','?
 
+lhs = # Diverges from Python's `expr_stmt`
+    | '(' lhs_arguments ')'
+    | '[' lhs_arguments ']'
+    | lhs_arguments
+
+for_lhs = # Diverges from Python's `expr_stmt`
+    | '(' identifiers ')'
+    | '[' identifiers ']'
+    | identifiers
+
 func_param =
-    | identifier (':' type)? ('=' indentable_expr)?
+    | identifier (':' type_annotation)? ('=' indentable_expr)?
 
 func_params =
     | func_param (',' func_param)* (',' '*' func_param (',' func_param)*)? (',' '**' func_param)? ','?
@@ -266,7 +303,7 @@ func_suite =
     | indent statement+ dedent
 
 func_def =
-    | 'def' identifier ('{' type (',' type)* ','? '}')? func_params '->' type ':' func_suite
+    | 'def' identifier generics_annotation? '(' func_params? ')' ('->' type_annotation)? ':' func_suite
 
 async_statement =
     | 'async' (func_def | with_statement | for_statement)

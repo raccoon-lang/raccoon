@@ -1,5 +1,5 @@
 """
-An implementation of Corona's tokenizer.
+An implementation of Raccoon's tokenizer.
 
 Check `compiler/lexer/lexer.grammar` for the language's lexer grammar specification.
 
@@ -150,7 +150,7 @@ class LexerError(Exception):
 
 class Lexer:
     """
-    Takes a UTF-8 encoded file and tries to tokenize it following Corona's grammmar.
+    Takes a UTF-8 encoded file and tries to tokenize it following Raccoon's grammmar.
 
     TODO: Normalize (using NFKC normalization form) the codepoints
     """
@@ -690,6 +690,10 @@ class Lexer:
                     token_kind = TokenKind.OPERATOR
                 elif char == "@" and peek_char == "=":
                     token += self.eat_char()
+                    token_kind = TokenKind.OPERATOR
+                elif char == ":" and peek_char == "=":
+                    token += self.eat_char()
+                    token_kind = TokenKind.OPERATOR
 
                 tokens.append(Token(token, token_kind, *self.get_line_info()))
 

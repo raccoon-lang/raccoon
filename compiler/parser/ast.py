@@ -1,5 +1,5 @@
 """
-Contains classes that describe Corona's Abstract Syntax Tree.
+Contains classes that describe Raccoon's Abstract Syntax Tree.
 """
 
 from enum import Enum
@@ -35,7 +35,7 @@ class BinaryOpKind(Enum):
     IS_NOT = 22
 
     @staticmethod
-    def from_string(op, second_token=None):
+    def from_string(op, rem_op=None):
         if op == "^":
             return BinaryOpKind.POWER
         elif op == "*":
@@ -76,12 +76,12 @@ class BinaryOpKind(Enum):
             return BinaryOpKind.NOT_EQUAL
         elif op == "in":
             return BinaryOpKind.IN
-        elif op == "not" and second_token == "in":
+        elif op == "not" and rem_op == "in":
             return BinaryOpKind.NOT_IN
+        elif op == "is" and rem_op == "not":
+            return BinaryOpKind.IS_NOT
         elif op == "is":
             return BinaryOpKind.IS
-        elif op == "is" and second_token == "not":
-            return BinaryOpKind.IS_NOT
         else:
             return None
 
@@ -238,13 +238,6 @@ class BinaryExpr(AST):
         self.rhs = rhs
 
 
-class IfExpr(AST):
-    def __init__(self, if_expr, condition, else_expr):
-        self.if_expr = if_expr
-        self.condition = condition
-        self.else_expr = else_expr
-
-
 class FuncParam(AST):
     def __init__(self, name, type_annotation=None, default_value_expr=None):
         self.name = name
@@ -271,11 +264,20 @@ class FuncParams(AST):
         self.named_tuple_rest_param = named_tuple_rest_param
 
 
-class FuncExpr(AST):
-    def __init__(self, name, body, params=[]):
+class Function(AST):
+    def __init__(
+        self,
+        name,
+        body,
+        params=[],
+        return_type_annotation=None,
+        generics_annotation=None,
+    ):
         self.name = name
         self.body = body
         self.params = params
+        self.return_type_annotation = return_type_annotation
+        self.generics_annotation = generics_annotation
 
 
 class TupleRestExpr(AST):
@@ -296,7 +298,7 @@ class Comprehension(AST):
         iterable_expr,
         key_expr=None,
         comprehension_type=ComprehensionType.GENERATOR,
-        where_exprs=[],
+        where_expr=None,
         is_async=False,
         nested_comprehension=None,
     ):
@@ -305,7 +307,7 @@ class Comprehension(AST):
         self.var_expr = var_expr
         self.iterable_expr = iterable_expr
         self.comprehension_type = comprehension_type
-        self.where_exprs = where_exprs
+        self.where_expr = where_expr
         self.is_async = is_async
         self.nested_comprehension = nested_comprehension
 
@@ -322,6 +324,11 @@ class Dict(AST):
 
 
 class Set(AST):
+    def __init__(self, exprs=[]):
+        self.exprs = exprs
+
+
+class List(AST):
     def __init__(self, exprs=[]):
         self.exprs = exprs
 
@@ -382,8 +389,128 @@ class WithArgument(AST):
         self.name = name
 
 
-class With(AST):
+class WithStatement(AST):
     def __init__(self, arguments, body):
         self.arguments = arguments
         self.body = body
 
+
+class Except(AST):
+    def __init__(self, argument, name, body):
+        self.argument = argument
+        self.name = name
+        self.body = body
+
+
+class TryStatement(AST):
+    def __init__(
+        self, try_body, except_clauses=None, else_body=None, finally_body=None
+    ):
+        self.try_body = try_body
+        self.except_clauses = except_clauses
+        self.else_body = else_body
+        self.finally_body = finally_body
+
+
+class ForStatement(AST):
+    def __init__(self, var_expr, iterable_expr, body, else_body, where_expr=None):
+        self.var_expr = var_expr
+        self.iterable_expr = iterable_expr
+        self.body = body
+        self.else_body = else_body
+        self.where_expr = where_expr
+
+
+class WhileStatement(AST):
+    def __init__(self, cond_expr, body, else_body, where_expr=None):
+        self.cond_expr = cond_expr
+        self.body = body
+        self.else_body = else_body
+        self.where_expr = where_expr
+
+
+class Elif(AST):
+    def __init__(self, cond_expr, body):
+        self.cond_expr = cond_expr
+        self.body = body
+
+
+class IfStatement(AST):
+    def __init__(self, cond_expr, if_body, elifs=[], else_body=None):
+        self.cond_expr = cond_expr
+        self.if_body = if_body
+        self.elifs = elifs
+        self.else_body = else_body
+
+
+class IfExpr(AST):
+    def __init__(self, if_expr, cond_expr, else_expr):
+        self.if_expr = if_expr
+        self.cond_expr = cond_expr
+        self.else_expr = else_expr
+
+
+class NamedExpression(AST):
+    def __init__(self, name, expr):
+        self.name = name
+        self.expr = expr
+
+
+class GenericType(AST):
+    def __init__(self, generic_type, specialization_types):
+        self.generic_type = generic_type
+        self.specialization_types = specialization_types
+
+
+class FunctionType(AST):
+    def __init__(self, return_type, param_types=[]):
+        self.return_type = return_type
+        self.param_types = param_types
+
+
+class ListType(AST):
+    def __init__(self, types):
+        self.types = types
+
+
+class TupleType(AST):
+    def __init__(self, types):
+        self.types = types
+
+
+class Type(AST):
+    def __init__(self, type):
+        self.type = type
+
+
+class IntersectionType(AST):
+    def __init__(self, types):
+        self.types = types
+
+
+class UnionType(AST):
+    def __init__(self, types):
+        self.types = types
+
+
+class GenericsAnnotation(AST):
+    def __init__(self, types):
+        self.types = types
+
+
+class Class(AST):
+    def __init__(self, name, body, parent_classes=[], generics_annotation=None):
+        self.name = name
+        self.body = body
+        self.parent_classes = parent_classes
+        self.generics_annotation = generics_annotation
+
+
+class ListLHS(AST):
+    def __init__(self, exprs):
+        self.exprs = exprs
+
+
+class TupleLHS(AST):
+    def __init__(self, exprs):
+        self.exprs = exprs
