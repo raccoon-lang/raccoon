@@ -20,7 +20,7 @@ from compiler.parser.ast import (
     FuncExpr,
     TupleRestExpr,
     NamedTupleRestExpr,
-    ComprehensionFor,
+    Comprehension,
 )
 
 
@@ -32,9 +32,43 @@ def test_parser_memoizes_parser_functions_results_successfully():
     assert result0 == Identifier(0)
     assert parser0.cache == {-1: {"identifier": (Identifier(0), 0)}}
 
+    def parse(parser, *parsers, fn=None):
+        """
+        A combinator function for parsing PEG sequence.
+        Supports function and out argument for pulling out relevant data.
+        """
+
+        def func():
+            nonlocal parser
+            # Get important parser state before parsing.
+            cursor, row, column = parser.cursor, *parser.get_line_info()
+
+            func.__name__ = "p"
+            result = []
+
+            for p in parsers:
+                is_a_str = type(p) == str
+                ast = parser.consume_string(p) if is_a_str else p()
+
+                if ast is None:
+                    # Revert parser state
+                    parser.revert(cursor, row, column)
+                    break
+
+                result.append(ast)
+            else:
+                if fn:
+                    fn(result, parser.combinator_data)
+
+                return result
+
+            return None
+
+        return func
+
     # Check to see if parser is memoizing subccesses and failures properly
     parser1 = Parser.from_code("u'hello' .05im _wr2t4gdbeYFS")
-    parser1.p(parser1.prefixed_string, parser1.imag_float, parser1.integer)()
+    parse(parser1, parser1.prefixed_string, parser1.imag_float, parser1.integer)()
 
     assert parser1.cache == {
         -1: {"prefixed_string": (PrefixedString(0), 0),},
@@ -42,7 +76,7 @@ def test_parser_memoizes_parser_functions_results_successfully():
         1: {"integer": (None, 2)},
     }
 
-    parser1.p(parser1.prefixed_string, parser1.imag_float, parser1.identifier)()
+    parse(parser1, parser1.prefixed_string, parser1.imag_float, parser1.identifier)()
 
     assert parser1.cache == {
         -1: {"prefixed_string": (PrefixedString(0), 0),},
@@ -55,7 +89,7 @@ def test_parser_memoizes_parser_functions_results_successfully():
     imag_float = MagicMock(return_value=ImagFloat(1), __name__="imag_float")
 
     # These functions are needed because the decorators have wrapper functions that take
-    # a self argument.
+    # a parser argument.
     def memoize_imag_float_wrapper(parser):
         return Parser.memoize(imag_float)(parser)
 
@@ -66,9 +100,9 @@ def test_parser_memoizes_parser_functions_results_successfully():
 
     # parser2.imag_float should onmly be called once here. It's chahed redult should be used
     # for subsequent calls.
-    parser2.p(parser2.prefixed_string, parser2.imag_float, parser2.integer)()
-    parser2.p(parser2.prefixed_string, parser2.imag_float, parser2.identifier)()
-    parser2.p(parser2.prefixed_string, parser2.imag_float, parser2.identifier)()
+    parse(parser2, parser2.prefixed_string, parser2.imag_float, parser2.integer)()
+    parse(parser2, parser2.prefixed_string, parser2.imag_float, parser2.identifier)()
+    parse(parser2, parser2.prefixed_string, parser2.imag_float, parser2.identifier)()
 
     assert len(imag_float.mock_calls) == 1
 

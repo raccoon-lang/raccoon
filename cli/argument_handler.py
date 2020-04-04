@@ -47,7 +47,8 @@ class ArgumentHandler:
         elif output_type == "ast":
             # result = Parser.from_code(code).subscript_index()
             # result = Parser.from_code(code).atom_trailer()
-            result = Parser.from_code(code).with_statement()
+            result = Parser.from_code(code).atom_expr()
+            # result = Parser.from_code(code).with_statement()
         else:
             click.echo("Unimplemented Output Type!")
             return
