@@ -4,7 +4,7 @@
     </a>
 </div>
 
-<h1 align="center">Raccoon</h1>
+<h1 align="center">RACCOON</h1>
 
 ### INTRODUCTION
 Raccoon is a language with Python 3.x syntax that is amenable to static analysis. The repository both defines the spec of the language and contains a reference implementation of the compiler, which compiles a legal Raccoon code to WebAssembly.
@@ -43,7 +43,7 @@ Because I decided to work on the project during a Raccoonvirus lockdown.
 
 - Compile and run sample Raccoon code [WIP]
     ```sh
-    Raccoon samples/class.vi
+    raccoon samples/test.ra
     ```
 
 ### TESTING
@@ -64,7 +64,7 @@ Because I decided to work on the project during a Raccoonvirus lockdown.
 
 - Compile and execute a Raccoon source file [WIP]
     ```sh
-    Raccoon samples/class.vi
+    raccoon samples/test.ra
     ```
 
 ### LANGUAGE DESIGN
