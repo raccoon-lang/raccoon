@@ -30,7 +30,7 @@ class ArgumentHandler:
         return "exe"
 
     @staticmethod
-    def compile_string(code, optimization_level=0, display=False, output_type="exe"):
+    def compile_code(code, optimization_level=0, display=False, output_type="exe"):
         """
         supported_output_types = [
             "exe",
@@ -45,7 +45,9 @@ class ArgumentHandler:
         if output_type == "tokens":
             result = Lexer(code).lex()
         elif output_type == "ast":
-            result = Parser.from_code(code).rest_indentable_exprs()
+            # result = Parser.from_code(code).subscript_index()
+            # result = Parser.from_code(code).atom_trailer()
+            result = Parser.from_code(code).with_statement()
         else:
             click.echo("Unimplemented Output Type!")
             return
@@ -57,31 +59,11 @@ class ArgumentHandler:
     def compile_file(
         file_path, optimization_level=0, display=False, output_type="exe",
     ):
-        """
-        supported_output_types = [
-            "exe",
-            "ll",
-            "wasm",
-            "ast",
-            "lowered_ast",
-            "tokens",
-        ]
-        """
-
         # Corona only supports UTF-8 encoded source files.
         with open(file_path, mode="r", encoding="utf-8") as f:
-            code = f.read()
-
-            if output_type == "tokens":
-                result = Lexer(code).lex()
-            elif output_type == "ast":
-                result = Parser.from_code(code).rest_indentable_exprs()
-            else:
-                click.echo("Unimplemented Output Type!")
-                return
-
-            if display or output_type in ["tokens", "ast"]:
-                click.echo(result)
+            ArgumentHandler.compile_code(
+                f.read(), optimization_level, display, output_type
+            )
 
     @staticmethod
     def run_compiled_file(file_path):

@@ -124,8 +124,8 @@ class ComprehensionType(Enum):
 
     GENERATOR = 0
     LIST = 1
-    DICT = 1
-    SET = 1
+    DICT = 2
+    SET = 3
 
 
 class AST:
@@ -139,7 +139,9 @@ class AST:
     def __repr__(self):
         type_name = type(self).__name__
         fields = vars(self)
-        formatted_fields = ", ".join(["=".join([key, repr(value)]) for key, value in fields.items()])
+        formatted_fields = ", ".join(
+            ["=".join([key, repr(value)]) for key, value in fields.items()]
+        )
 
         return f"{type_name}({formatted_fields})"
 
@@ -200,6 +202,11 @@ class ImagFloat(AST):
 class String(AST):
     def __init__(self, index):
         self.index = index
+
+
+class StringList(AST):
+    def __init__(self, strings):
+        self.strings = strings
 
 
 class ByteString(AST):
@@ -265,10 +272,10 @@ class FuncParams(AST):
 
 
 class FuncExpr(AST):
-    def __init__(self, name, params, body):
+    def __init__(self, name, body, params=[]):
         self.name = name
-        self.params = params
         self.body = body
+        self.params = params
 
 
 class TupleRestExpr(AST):
@@ -287,12 +294,14 @@ class Comprehension(AST):
         expr,
         var_expr,
         iterable_expr,
+        key_expr=None,
         comprehension_type=ComprehensionType.GENERATOR,
         where_exprs=[],
         is_async=False,
         nested_comprehension=None,
     ):
         self.expr = expr
+        self.key_expr = key_expr
         self.var_expr = var_expr
         self.iterable_expr = iterable_expr
         self.comprehension_type = comprehension_type
@@ -308,25 +317,73 @@ class Yield(AST):
 
 
 class Dict(AST):
-    def __init__(self, key_value_pairs):
+    def __init__(self, key_value_pairs=[]):
         self.key_value_pairs = key_value_pairs
 
 
 class Set(AST):
-    def __init__(self, exprs):
+    def __init__(self, exprs=[]):
         self.exprs = exprs
 
 
-class AtomExpr(AST):
+class Tuple(AST):
+    def __init__(self, exprs=[]):
+        self.exprs = exprs
+
+
+class SubscriptIndex(AST):
+    def __init__(self, from_expr=None, skip_expr=None, to_expr=None):
+        self.from_expr = from_expr
+        self.skip_expr = skip_expr
+        self.to_expr = to_expr
+
+
+class Subscript(AST):
+    def __init__(self, expr, indices):
+        self.expr = expr
+        self.indices = indices
+
+
+class Call(AST):
+    def __init__(self, expr, arguments):
+        self.expr = expr
+        self.arguments = arguments
+
+
+class Field(AST):
+    def __init__(self, expr, field):
+        self.expr = expr
+        self.field = field
+
+
+class Bool(AST):
+    def __init__(self, is_true):
+        self.is_true = is_true
+
+
+class NoneLiteral(AST):
+    pass
+
+
+class Argument(AST):
+    def __init__(self, expr, name=None):
+        self.expr = expr
+        self.name = name
+
+
+class AwaitedExpr(AST):
     def __init__(self, expr):
         self.expr = expr
 
 
-class WhileStatement(AST):
-    def __init__(self):
-        pass
+class WithArgument(AST):
+    def __init__(self, expr, name=None):
+        self.expr = expr
+        self.name = name
 
 
-class ForStatement(AST):
-    def __init__(self):
-        pass
+class With(AST):
+    def __init__(self, arguments, body):
+        self.arguments = arguments
+        self.body = body
+

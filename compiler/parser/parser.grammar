@@ -98,8 +98,8 @@ lambda_expr_def =
     | 'lambda' lambda_params? ':' expr
 
 expr =
-    | test
     | lambda_expr_def
+    | test
 
 exprs =
     | expr (',' expr)* ','?
@@ -114,8 +114,8 @@ lambda_block_def =
     | 'lambda' lambda_params? ':' indent statement+ dedent
 
 indentable_expr =
-    | expr
     | lambda_block_def
+    | expr
 
 indentable_exprs =
     | indentable_expr (',' indentable_expr)* ','?
@@ -151,20 +151,21 @@ expr_suite =
     | indent rest_indentable_expr dedent
 
 dict_or_set =
-    | test ':' expr_suite (',' test ':' expr_suite)* ','?
     | test ':' expr_suite comprehension_for
+    | test ':' expr_suite (',' test ':' expr_suite)* ','?
     | rest_indentable_expr comprehension_for
     | rest_indentable_exprs
 
-subscript =
+subscript_index =
     | test? ':' test? (':' test?)?
     | test
 
-subscripts =
-    | subscript (',' subscript)* ','?
+subscript =
+    | subscript_index (',' subscript_index)* ','?
 
 atom =
-    | '(' (yield_expr | indentable_exprs_or_comprehension)? ')'
+    | '(' indentable_exprs_or_comprehension? ')'
+    | '(' yield_expr ')'
     | '[' indentable_exprs_or_comprehension? ']'
     | '{' dict_or_set? '}'
     | identifier
@@ -177,9 +178,12 @@ atom =
 identifiers =
     | identifier (',' identifier)* ','?
 
-arguments =
-    | rest_indentable_expr
+argument =
     | identifier '=' indentable_expr
+    | rest_indentable_expr
+
+arguments =
+    | identifier (',' identifier)* ','?
 
 atom_trailer =
     | '(' arguments? ')'
@@ -189,17 +193,20 @@ atom_trailer =
 atom_expr =
     | 'await'? atom atom_trailer*
 
+with_item =
+    | expr ('as' identifier)?
+
 with_statement =
-    | 'with' expr ('as' identifier) (',' with_item)*  ':' func_suite
+    | 'with' with_item (',' with_item)*  ','? ':' func_suite
 
 try_statement =
-    | 'try' ':' func_suite except_clause+ else_clause finally_clause? | finally_clause
+    | 'try' ':' func_suite (except_clause+ else_clause? finally_clause? | finally_clause)
 
 else_clause =
     | 'else' ':' func_suite
 
 except_clause =
-    | 'except' identifier ('as' identifier) ':' func_suite
+    | 'except' identifier ('as' identifier)? ':' func_suite
 
 finally_clause =
     | 'finally' ':' func_suite
@@ -222,7 +229,7 @@ if_statement =
 type =
     | '[' type ']'
     | '(' type (',' type)* ','? ')' ('->' type)?
-    | identifier ('{' type (',' type)* ','? '}')?
+    | identifier ('[' type (',' type)* ','? ']')?
     | type '?'
     | type ('|' | '&') type
 

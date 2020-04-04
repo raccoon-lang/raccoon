@@ -29,9 +29,22 @@ from .ast import (
     TupleRestExpr,
     NamedTupleRestExpr,
     Comprehension,
+    ComprehensionType,
     Yield,
     Dict,
-    Set
+    Set,
+    SubscriptIndex,
+    Subscript,
+    Tuple,
+    StringList,
+    NoneLiteral,
+    Bool,
+    Argument,
+    Field,
+    Call,
+    AwaitedExpr,
+    WithArgument,
+    With,
 )
 
 
@@ -68,6 +81,7 @@ class Parser:
         self.column = -1
         self.cache = {}
         self.combinator_data = {}
+        self.revert_data = (self.cursor, *self.get_line_info())
 
     def __repr__(self):
         return f"{type(self).__name__}{vars(self)}"
@@ -382,6 +396,28 @@ class Parser:
 
         return func
 
+    def register_revert(self):
+        """
+        Store state to which to revert parser to later.
+        """
+
+        self.revert_data = (self.cursor, *self.get_line_info())
+
+    def revertable(self, cond):
+        """
+        Reverts parser state to previously registered revert state
+        """
+        if not cond:
+            self.revert(*self.revert_data)
+        else:
+            # This is needed for while loops, otherwise the revert state will
+            # be stuck at the state before the first iteration. So we want
+            # to update the state on each iteration.
+            self.register_revert()
+
+        return cond
+
+
     @backtrackable
     @memoize
     def newline(self):
@@ -690,7 +726,7 @@ class Parser:
         rule = and_test ('or' and_test)* [left associative]
         """
 
-        return self.binary_expr(self.and_expr, ["or"])
+        return self.binary_expr(self.and_test, ["or"])
 
     @backtrackable
     @memoize
@@ -748,6 +784,8 @@ class Parser:
 
         # TODO: Fix impl for `'(' func_params? ')'` to use self.func_params()
 
+        cursor, row, column = self.cursor, *self.get_line_info()
+
         # FIRST ALTERNATIVE
         if (
             self.consume_string("(") is not None
@@ -757,45 +795,56 @@ class Parser:
             return func_params
 
         # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
         if (param := self.lambda_param()) is not None:
             params = [param]
-            while (
+
+            self.register_revert()
+            while (self.revertable(
                 self.consume_string(",") is not None
                 and (param := self.lambda_param()) is not None
-            ):
+            )):
                 params.append(param)
 
-            if self.consume_string(",") is not None and self.consume_string("/") is not None:
+            self.register_revert()
+            if (self.revertable(
+                self.consume_string(",") is not None
+                and self.consume_string("/") is not None
+            )):
                 params.append(PositionalParamsSeparator())
 
-                while (
+                self.register_revert()
+                while (self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.lambda_param()) is not None
-                ):
+                )):
                     params.append(param)
 
             tuple_rest_param = None
-            if (
+            self.register_revert()
+            while (self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("*") is not None
                 and (param := self.lambda_param()) is not None
-            ):
+            )):
                 tuple_rest_param = param
 
             keyword_only_params = []
             if tuple_rest_param:
-                while (
+                self.register_revert()
+                while (self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.lambda_param()) is not None
-                ):
+                )):
                     keyword_only_params.append(param)
 
             named_tuple_rest_param = None
-            if (
+            self.register_revert()
+            if (self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("**") is not None
                 and (param := self.lambda_param()) is not None
-            ):
+            )):
                 named_tuple_rest_param = param
 
             return FuncParams(
@@ -803,24 +852,27 @@ class Parser:
             )
 
         # THIRD ALTERNATIVE
+        self.revert(cursor, row, column)
         if (
             self.consume_string("*") is not None
             and (tuple_rest_param := self.lambda_param()) is not None
         ):
             named_tuple_params = []
             if tuple_rest_param:
-                while (
+                self.register_revert()
+                while (self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.lambda_param()) is not None
-                ):
+                )):
                     named_tuple_params.append(param)
 
             named_tuple_rest_param = None
-            if (
+            self.register_revert()
+            if (self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("**") is not None
                 and (param := self.lambda_param()) is not None
-            ):
+            )):
                 named_tuple_rest_param = param
 
             return FuncParams(
@@ -828,6 +880,7 @@ class Parser:
             )
 
         # FOURTH ALTERNATIVE
+        self.revert(cursor, row, column)
         if (
             self.consume_string("**") is not None
             and (named_tuple_rest_param := self.lambda_param()) is not None
@@ -843,29 +896,27 @@ class Parser:
         rule = 'lambda' lambda_params? ':' expr
         """
 
-        result = None
+        if self.consume_string("lambda") is not None:
+            params = params if (params := self.lambda_params()) else []
 
-        if (
-            self.consume_string("lambda") is not None
-            and self.consume_string(":") is not None
-            and (test := self.test()) is not None
-        ):
-            result = FuncExpr(None, self.lambda_params(), [test])
+            if (
+                self.consume_string(":") is not None
+                and (expr := self.expr()) is not None
+            ):
+                return FuncExpr(None, [expr], params)
 
-        return result
+        return None
 
     @backtrackable
     @memoize
     def expr(self):
         """
-        rule = test | lambda_expr_def
+        rule = lambda_expr_def | test
         """
 
-        result = self.test()
+        result = self.lambda_expr_def()
         if result is None:
-            result = self.lambda_expr_def()
-            if result is None:
-                result = None
+            result = self.test()
 
         return result
 
@@ -883,10 +934,11 @@ class Parser:
 
         result = [result]
 
-        while (
+        self.register_revert()
+        while (self.revertable(
             self.consume_string(",") is not None
             and (expr := self.expr()) is not None
-        ):
+        )):
             result.append(expr)
 
         self.consume_string(",")
@@ -900,23 +952,22 @@ class Parser:
         rule = ('*' | '**')? expr
         """
 
-        is_tuple_rest = True
+        is_tuple_rest = None
 
-        rest = self.consume_string("*")
-        if rest is None:
-            rest = self.consume_string("**")
-            if rest is not None:
-                is_tuple_rest = False
+        if self.consume_string("*"):
+            is_tuple_rest = True
+        elif self.consume_string("**"):
+            is_tuple_rest = False
 
         result = self.expr()
+
         if result is None:
             return None
 
-        if rest is not None:
-            if is_tuple_rest:
-                result = TupleRestExpr(result)
-            else:
-                result = NamedTupleRestExpr(result)
+        if is_tuple_rest is True:
+            result = TupleRestExpr(result)
+        elif is_tuple_rest is False:
+            result = NamedTupleRestExpr(result)
 
         return result
 
@@ -934,10 +985,11 @@ class Parser:
 
         result = [result]
 
-        while (
+        self.register_revert()
+        while (self.revertable(
             self.consume_string(",") is not None
             and (rest_expr := self.rest_expr()) is not None
-        ):
+        )):
             result.append(rest_expr)
 
         self.consume_string(",")
@@ -951,40 +1003,38 @@ class Parser:
         rule = 'lambda' lambda_params? ':' indent statement+ dedent
         """
 
-        result = None
+        # TODO: Change expr to statement
 
-        if (
-            self.consume_string("lambda") is not None
-            and (lambda_params := self.lambda_params()) is not None
-            and self.consume_string(":")
-            and self.indent()
-        ):
-            exprs = []
-            while (expr := self.expr()) is not None:
-                exprs.append(expr)
+        if self.consume_string("lambda") is not None:
+            params = params if (params := self.lambda_params()) else []
 
-            # There should be at least an expression.
-            # TODO: Raise error if block has dedent but no expression.
             if (
-                self.dedent() is not None
-                and len(expr) > 0
+                self.consume_string(":") is not None
+                and self.indent() is not None
             ):
-                result = FuncExpr(None, lambda_params, exprs)
+                exprs = []
+                while (expr := self.expr()) is not None:
+                    exprs.append(expr)
 
-        return result
+                # There should be at least an expression.
+                # TODO: Raise error if block has dedent but no expression.
+                if self.dedent() is not None and len(expr) > 0:
+                    return FuncExpr(None, exprs, params)
+
+        return None
 
     @backtrackable
     @memoize
     def indentable_expr(self):
         """
         rule =
-            | expr
             | lambda_block_def
+            | expr
         """
 
-        result = self.expr()
+        result = self.lambda_block_def()
         if result is None:
-            result = self.lambda_block_def()
+            result = self.expr()
 
         return result
 
@@ -1002,10 +1052,11 @@ class Parser:
 
         result = [result]
 
-        while (
+        self.register_revert()
+        while (self.revertable(
             self.consume_string(",") is not None
             and (indentable_expr := self.indentable_expr()) is not None
-        ):
+        )):
             result.append(indentable_expr)
 
         self.consume_string(",")
@@ -1019,23 +1070,22 @@ class Parser:
         rule = ('*' | '**')? indentable_expr
         """
 
-        is_tuple_rest = True
+        is_tuple_rest = None
 
-        rest = self.consume_string("*")
-        if rest is None:
-            rest = self.consume_string("**")
-            if rest is not None:
-                is_tuple_rest = False
+        if self.consume_string("*"):
+            is_tuple_rest = True
+        elif self.consume_string("**"):
+            is_tuple_rest = False
 
         result = self.indentable_expr()
+
         if result is None:
             return None
 
-        if rest is not None:
-            if is_tuple_rest:
-                result = TupleRestExpr(result)
-            else:
-                result = NamedTupleRestExpr(result)
+        if is_tuple_rest is True:
+            result = TupleRestExpr(result)
+        elif is_tuple_rest is False:
+            result = NamedTupleRestExpr(result)
 
         return result
 
@@ -1053,10 +1103,11 @@ class Parser:
 
         result = [result]
 
-        while (
+        self.register_revert()
+        while (self.revertable(
             self.consume_string(",") is not None
             and (rest_expr := self.rest_indentable_expr()) is not None
-        ):
+        )):
             result.append(rest_expr)
 
         self.consume_string(",")
@@ -1111,7 +1162,7 @@ class Parser:
         rule = 'async'? sync_comprehension_for ('async'? sync_comprehension_for)*
         """
 
-        is_async = bool(self.consume_string("async"))
+        is_async = self.consume_string("async") is not None
         result = self.sync_comprehension_for()
 
         if result is None:
@@ -1121,12 +1172,14 @@ class Parser:
 
         temp_result = result
         while True:
-            is_async = bool(self.consume_string("async"))
+            self.register_revert()
+            is_async = self.revertable(self.consume_string("async") is None)
             if (nested_comprehension := self.sync_comprehension_for()) is not None:
                 temp_result.nested_comprehension = nested_comprehension
                 temp_result.is_async = is_async
                 temp_result = temp_result.nested_comprehension
                 continue
+
             break
 
         return result
@@ -1140,6 +1193,8 @@ class Parser:
             | rest_indentable_expr (',' rest_indentable_expr)* ','?
         """
 
+        cursor, row, column = self.cursor, *self.get_line_info()
+
         # FIRST ALTERNATIVE
         if (
             (rest_indentable_expr := self.rest_indentable_expr()) is not None
@@ -1149,13 +1204,15 @@ class Parser:
             return comprehension_for
 
         # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
         if (rest_indentable_expr := self.rest_indentable_expr()) is not None:
             rest_indentable_exprs = [rest_indentable_expr]
 
-            while (
+            self.register_revert()
+            while (self.revertable(
                 self.consume_string(",") is not None
                 and (rest_expr := self.rest_indentable_expr()) is not None
-            ):
+            )):
                 rest_indentable_exprs.append(rest_expr)
 
             self.consume_string(",")
@@ -1173,6 +1230,8 @@ class Parser:
             | indentable_exprs
         """
 
+        cursor, row, column = self.cursor, *self.get_line_info()
+
         # FIRST ALTERNATIVE
         if (
             self.consume_string("from") is not None
@@ -1181,6 +1240,7 @@ class Parser:
             return Yield([indentable_expr], is_yield_from=True)
 
         # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
         indentable_exprs = self.indentable_exprs()
 
         return Yield(indentable_exprs) if indentable_exprs is not None else None
@@ -1230,13 +1290,28 @@ class Parser:
     def dict_or_set(self):
         """
         rule =
-            | test ':' expr_suite (',' test ':' expr_suite)* ','?
             | test ':' expr_suite comprehension_for
+            | test ':' expr_suite (',' test ':' expr_suite)* ','?
             | rest_indentable_expr comprehension_for
             | rest_indentable_exprs
         """
 
+        cursor, row, column = self.cursor, *self.get_line_info()
+
         # FIRST ALTERNATIVE
+        if (
+            (test := self.test()) is not None
+            and self.consume_string(":") is not None
+            and (expr_suite := self.expr_suite()) is not None
+            and (comprehension_for := self.comprehension_for()) is not None
+        ):
+            comprehension_for.key_expr = test
+            comprehension_for.expr = expr_suite
+            comprehension_for.comprehension_type = ComprehensionType.DICT
+            return comprehension_for
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
         if (
             (test := self.test()) is not None
             and self.consume_string(":") is not None
@@ -1244,29 +1319,370 @@ class Parser:
         ):
             key_value_pairs = [(test, expr_suite)]
 
-            while (
+            self.register_revert()
+            while (self.revertable(
                 self.consume_string(",") is not None
                 and (test := self.test()) is not None
                 and self.consume_string(":") is not None
                 and (expr_suite := self.expr_suite()) is not None
-            ):
+            )):
                 key_value_pairs.append((test, expr_suite))
 
-            self.consume(',')
+            self.consume_string(',')
 
             return Dict(key_value_pairs)
 
-        # SECOND ALTERNATIVE
-        if (
-            (test := self.test()) is not None
-            and self.consume_string(":") is not None
-            and (expr_suite := self.expr_suite()) is not None
-            and (expr_suite := self.expr_suite()) is not None
-        ):
-            return Dict()
-
         # THIRD ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (
+            (rest_indentable_expr := self.rest_indentable_expr()) is not None
+            and (comprehension_for := self.comprehension_for()) is not None
+        ):
+            comprehension_for.expr = rest_indentable_expr
+            comprehension_for.comprehension_type = ComprehensionType.SET
+            return comprehension_for
 
         # FOURTH ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (rest_indentable_exprs := self.rest_indentable_exprs()) is not None:
+            return Set(rest_indentable_exprs)
+
         return None
 
+    @backtrackable
+    @memoize
+    def subscript_index(self):
+        """
+        rule =
+            | test? ':' test? (':' test?)?
+            | test
+        """
+
+        cursor, row, column = self.cursor, *self.get_line_info()
+
+        from_expr = self.test()
+
+        # FIRST ALTERNATIVE
+        if self.consume_string(":") is not None:
+            skip_expr = self.test()  # Can either be a skip_expr or to_expr
+            to_expr = None
+            second_colon = None
+
+            if (second_colon := self.consume_string(":")) is not None:
+                to_expr = self.test()
+
+            if to_expr is None and skip_expr is not None and second_colon is None:
+                to_expr = skip_expr
+                skip_expr = None
+
+            return SubscriptIndex(from_expr, skip_expr, to_expr)
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (test := self.test()) is not None:
+            return SubscriptIndex(test)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def subscript(self):
+        """
+        rule = subscript (',' subscript)* ','?
+        """
+
+        result = self.subscript_index()
+
+        if result is None:
+            return None
+
+        result = [result]
+
+        self.register_revert()
+        while (self.revertable(
+            self.consume_string(",") is not None
+            and (subscript_index := self.subscript_index()) is not None
+        )):
+            result.append(subscript_index)
+
+        self.consume_string(",")
+
+        return Subscript(None, result)
+
+    @backtrackable
+    @memoize
+    def atom(self):
+        """
+        rule =
+            | '(' indentable_exprs_or_comprehension? ')'
+            | '(' yield_expr ')'
+            | '{' dict_or_set? '}'
+            | identifier
+            | float
+            | string+
+            | 'None'
+            | 'True'
+            | 'False'
+        """
+
+        cursor, row, column = self.cursor, *self.get_line_info()
+
+        # FIRST ALTERNATIVE
+        if self.consume_string("(") is not None:
+            exprs = self.indentable_exprs_or_comprehension()
+            if self.consume_string(")") is not None:
+                result = exprs
+
+                # Check if this can be a tuple expression like () and (expr,)
+                if exprs is None:
+                    result = Tuple(exprs)
+                elif self.tokens[self.cursor - 1].data == ",":
+                    result = Tuple()
+
+                return result
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
+        if self.consume_string("(") is not None:
+            if (
+                (yield_expr := self.yield_expr()) is not None
+                and self.consume_string(")") is not None
+            ):
+                return yield_expr
+
+        # THIRD ALTERNATIVE
+        self.revert(cursor, row, column)
+        if self.consume_string("(") is not None:
+            dict_or_set = self.dict_or_set()
+            if self.consume_string(")") is not None:
+
+                # Check if this can be a set expression like {}
+                return dict_or_set if dict_or_set is not None else Set()
+
+
+        # FOURTH ALTERNATIVE
+        if (float_ := self.float()) is not None:
+            return float_
+
+        # FIFTH ALTERNATIVE
+        if (integer := self.integer()) is not None:
+            return integer
+
+        # SIXTH ALTERNATIVE
+        if (string := self.string()) is not None:
+
+            string_list = [string]
+            while(string := self.string() is not None):
+                string_list.append(string)
+
+            return string_list if string_list else string
+
+        # SEVENTH ALTERNATIVE
+        self.revert(cursor, row, column)
+        if self.consume_string("None") is not None:
+            return NoneLiteral()
+
+        # EIGHTH ALTERNATIVE
+        if self.consume_string("True") is not None:
+            return Bool(True)
+
+        # NINETH ALTERNATIVE
+        if self.consume_string("False") is not None:
+            return Bool(False)
+
+        # TENTH ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (identifier := self.identifier()) is not None:
+            return identifier
+
+        return None
+
+    @backtrackable
+    @memoize
+    def identifiers(self):
+        """
+        rule = identifier (',' identifier)* ','?
+        """
+
+        result = self.identifier()
+
+        if result is None:
+            return None
+
+        result = [result]
+
+        self.register_revert()
+        while (self.revertable(
+            self.consume_string(",") is not None
+            and (identifier := self.identifier()) is not None
+        )):
+            result.append(identifier)
+
+        self.consume_string(",")
+
+        return result
+
+    @backtrackable
+    @memoize
+    def argument(self):
+        """
+        rule =
+            | identifier '=' indentable_expr
+            | rest_indentable_expr
+        """
+
+        cursor, row, column = self.cursor, *self.get_line_info()
+
+        # FIRST ALTERNATIVE
+        if (
+            (identifier := self.identifier()) is not None
+            and self.consume_string("=") is not None
+            and (indentable_expr := self.indentable_expr()) is not None
+        ):
+            return Argument(indentable_expr, identifier)
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (rest_indentable_expr := self.rest_indentable_expr()) is not None:
+            return Argument(rest_indentable_expr)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def arguments(self):
+        """
+        rule = argument (',' argument)* ','?
+        """
+
+        result = self.argument()
+
+        if result is None:
+            return None
+
+        result = [result]
+
+        self.register_revert()
+        while (self.revertable(
+            self.consume_string(",") is not None
+            and (argument := self.argument()) is not None
+        )):
+            result.append(argument)
+
+        self.consume_string(",")
+
+        return result
+
+    @backtrackable
+    @memoize
+    def atom_trailer(self):
+        """
+        rule =
+            | '(' arguments? ')'
+            | '[' subscript ']'
+            | '.' identifier
+        """
+
+        cursor, row, column = self.cursor, *self.get_line_info()
+
+        # FIRST ALTERNATIVE
+        if self.consume_string("(") is not None:
+            arguments = self.arguments()
+
+            if self.consume_string(")"):
+                return Call(None, arguments)
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (
+            self.consume_string("[") is not None
+            and (subscript := self.subscript()) is not None
+            and self.consume_string("]") is not None
+        ):
+            return subscript
+
+        # THIRD ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (
+            self.consume_string(".") is not None
+            and (identifier := self.identifier()) is not None
+        ):
+            return Field(None, identifier)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def atom_expr(self):
+        """
+        rule = 'await'? atom atom_trailer* [left associative]
+        """
+
+        is_await = self.consume_string("await") is not None
+        result = self.atom()
+
+        if result is None:
+            return None
+
+        while (atom_trailer := self.atom_trailer()) is not None:
+            atom_trailer.expr = result
+            result = atom_trailer
+
+        if is_await:
+            result = AwaitedExpr(result)
+
+        return result
+
+    @backtrackable
+    @memoize
+    def with_item(self):
+        """
+        rule = expr ('as' identifier)?
+        """
+
+        if (expr := self.expr()) is not None:
+            identifier = None
+
+            self.register_revert()
+            if (self.revertable(
+                self.consume_string("as") is not None
+                and (identifier := self.identifier()) is not None
+            )):
+                identifier = identifier
+
+            return WithArgument(expr, identifier)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def with_statement(self):
+        """
+        rule = 'with' with_item (',' with_item)* ','? ':' func_suite
+        """
+
+        # TODO: Change expr_suite for func_suite
+
+        self.register_revert()
+        if (self.revertable(
+            self.consume_string("with") is not None
+            and (with_item := self.with_item()) is not None
+        )):
+            arguments = [with_item]
+
+            self.register_revert()
+            if (self.revertable(
+                self.consume_string(",") is not None
+                and (argument := self.with_item()) is not None
+            )):
+                arguments.append(argument)
+
+            self.consume_string(",")
+
+            if (
+                self.consume_string(":") is not None
+                and (expr_suite := self.expr_suite()) is not None
+            ):
+                return With(arguments, expr_suite)
+
+        return None

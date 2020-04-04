@@ -6,6 +6,9 @@ Corona is a language with Python 3.x syntax that is amenable to static analysis.
 
 **Corona will not maintain complete syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Corona. For example, Corona doesn't have runtime module modification.
 
+### WHY "CORONA"
+Because I decided to work on the project during a coronavirus lockdown.
+
 ### SETTING UP THE PROJECT
 ##### REQUIREMENTS
 - [Python 3.7+](https://www.python.org/downloads/) - Python interpreter

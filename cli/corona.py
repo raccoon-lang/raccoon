@@ -26,7 +26,7 @@ def app(version, program_file, compile_string, ast, tokens):
 
     elif compile_string:
         output_type = ArgumentHandler.get_output_type()
-        ArgumentHandler.compile_string(compile_string, output_type=output_type)
+        ArgumentHandler.compile_code(compile_string, output_type=output_type)
 
     else:
         click.echo(ctx.get_help())
