@@ -11,9 +11,6 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 
 **Raccoon will not maintain complete syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Raccoon. For example, Raccoon doesn't have runtime module modification.
 
-### WHY "Raccoon"
-Because I decided to work on the project during a Raccoonvirus lockdown.
-
 ### SETTING UP THE PROJECT
 ##### REQUIREMENTS
 - [Python 3.7+](https://www.python.org/downloads/) - Python interpreter
