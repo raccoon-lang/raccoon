@@ -13,8 +13,36 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 
 ### SETTING UP THE PROJECT
 ##### REQUIREMENTS
-- [Python 3.7+](https://www.python.org/downloads/) - Python interpreter
+- [Python 3.8+](https://www.python.org/downloads/) - Python interpreter
 - [Pipenv](https://docs.pipenv.org/en/latest/install/#installing-pipenv) - Python package manager
+- [LLVM 8.x](https://github.com/llvm/llvm-project/releases/tag/llvmorg-8.0.1) - LLVM library
+    <details>
+    <summary>Read more</summary>
+
+    #### WINDOWS
+
+    _TODO_
+
+    #### MAC OS
+
+    Install LLVM with [brew](https://brew.sh/)
+
+    ```
+    brew install llvm@8
+    ```
+
+    #### DEBIAN
+
+    Install LLVM 8
+
+    ```
+    apt-get install llvm-8
+    ```
+
+    ------
+
+    You can also get the binaries of the various platform [here](https://github.com/llvm/llvm-project/releases/tag/llvmorg-8.0.1)
+    </details>
 
 ##### STEPS
 - Clone project
@@ -56,7 +84,7 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 ### USAGE
 - Show help info
     ```sh
-    Raccoon --help
+    raccoon --help
     ```
 
 - Compile and execute a Raccoon source file [WIP]
