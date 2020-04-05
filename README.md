@@ -7,7 +7,7 @@
 <h1 align="center">RACCOON</h1>
 
 ### INTRODUCTION
-Raccoon is a language with Python 3.x syntax that is amenable to static analysis. The repository both defines the spec of the language and contains a reference implementation of the compiler, which compiles a legal Raccoon code to WebAssembly.
+Raccoon is a language with Python 3.x syntax that is amenable to static analysis. The repository both defines the spec of the language and contains a reference implementation of the compiler.
 
 **Raccoon will not maintain complete syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Raccoon. For example, Raccoon doesn't have runtime module modification.
 
@@ -47,12 +47,12 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 ##### STEPS
 - Clone project
     ```sh
-    git clone https://www.github.com/appcypher/Raccoon.git
+    git clone https://www.github.com/appcypher/raccoon.git
     ```
 
 - Move to project's directory
     ```sh
-    cd Raccoon
+    cd raccoon
     ```
 
 - Install dependencies
@@ -61,14 +61,9 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     pipenv install
     ```
 
-- Build the project [macOS and Linux]
-    ```sh
-    sh build.sh setup
-    ```
-
 - Compile and run sample Raccoon code [WIP]
     ```sh
-    raccoon samples/test.ra
+    cli/raccoon samples/test.ra
     ```
 
 ### TESTING
@@ -84,12 +79,12 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 ### USAGE
 - Show help info
     ```sh
-    raccoon --help
+    cli/raccoon --help
     ```
 
 - Compile and execute a Raccoon source file [WIP]
     ```sh
-    raccoon samples/test.ra
+    cli/raccoon samples/test.ra
     ```
 
 ### LANGUAGE DESIGN

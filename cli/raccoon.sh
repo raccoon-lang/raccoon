@@ -12,7 +12,7 @@ script_dir="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 script_path="$script_dir/run.sh"
 
 # Get Raccoon cli script path
-Raccoon_py_path="$script_dir/Raccoon.py"
+raccoon_py_path="$script_dir/raccoon.py"
 
 # Get current working directory
 cur_dir=`pwd`
@@ -21,7 +21,7 @@ cur_dir=`pwd`
 cd "$script_dir/.."
 
 # Run Raccoon and pass its arguments to it
-pipenv run -- $Raccoon_py_path $*
+pipenv run -- $raccoon_py_path $*
 
 # Cd back to original directory
 cd $cur_dir

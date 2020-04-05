@@ -23,11 +23,13 @@ class ArgumentHandler:
             "--tokens",
         ]
 
+        last_supported_output_types_in_args = "exe"
+
         for arg in argv:
             if arg in supported_output_types:
-                return arg[2:]
+                last_supported_output_types_in_args = arg[2:]
 
-        return "exe"
+        return last_supported_output_types_in_args
 
     @staticmethod
     def compile_code(code, optimization_level=0, display=False, output_type="exe"):
@@ -47,7 +49,10 @@ class ArgumentHandler:
         elif output_type == "ast":
             # result = Parser.from_code(code).subscript_index()
             # result = Parser.from_code(code).atom_trailer()
+            # result = Parser.from_code(code).comprehension_for()
+            # result = Parser.from_code(code).atom()
             # result = Parser.from_code(code).atom_expr()
+            # result = Parser.from_code(code).for_lhs()
             # result = Parser.from_code(code).test()
             # result = Parser.from_code(code).indentable_exprs_or_comprehension()
             # result = Parser.from_code(code).expr()
@@ -63,9 +68,18 @@ class ArgumentHandler:
             # result = Parser.from_code(code).class_arguments()
             # result = Parser.from_code(code).class_def()
             # result = Parser.from_code(code).lhs()
-            result = Parser.from_code(code).func_def()
             # result = Parser.from_code(code).func_param()
             # result = Parser.from_code(code).lambda_param()
+            # result = Parser.from_code(code).func_def()
+            # result = Parser.from_code(code).async_statement()
+            # result = Parser.from_code(code).small_statement()
+            # result = Parser.from_code(code).simple_statement()
+            # result = Parser.from_code(code).statements()
+            # result = Parser.from_code(code).statement()
+            # result = Parser.from_code(code).decorators()
+            # result = Parser.from_code(code).compound_statement()
+            # result = Parser.from_code(code).import_statement()
+            result = Parser.from_code(code).program()
         else:
             click.echo("Unimplemented Output Type!")
             return

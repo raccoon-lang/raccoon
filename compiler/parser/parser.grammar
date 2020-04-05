@@ -169,17 +169,22 @@ subscript_index =
 subscript =
     | subscript_index (',' subscript_index)* ','?
 
-atom =
+all_string =
+    | string
+    | byte_string
+    | prefixed_string
+
+atom = # When `string+` has more than one `string` it gets compiled as a stringlist.
     | '(' indentable_exprs_or_comprehension? ')'
     | '(' yield_expr ')'
     | '{' dict_or_set? '}'
     | '[' indentable_exprs_or_comprehension? ']'
-    | identifier
     | float
-    | string+
+    | all_string+
     | 'None'
     | 'True'
     | 'False'
+    | identifier
 
 argument =
     | identifier '=' indentable_expr
@@ -263,9 +268,9 @@ identifiers =
 generics_annotation =
     | '[' identifiers ']'
 
-class_suite = # Diverges from Python's `suite`
+class_suite = # Diverges from Python's `suite` # When `string+` has more than one `string` it gets compiled as a stringlist.
     | assignment_statement
-    | indent (import_statement | assignment_statement | class_def | 'async'? func_def | string)+ dedent
+    | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string)+ dedent
 
 class_def = # Divergence from Python's `arglist`
     | 'class' identifier generics_annotation? ('(' identifiers ')')? ':' class_suite
@@ -300,7 +305,7 @@ func_params =
 
 func_suite =
     | simple_statement
-    | indent statement+ dedent
+    | indent statements dedent
 
 func_def =
     | 'def' identifier generics_annotation? '(' func_params? ')' ('->' type_annotation)? ':' func_suite
@@ -330,10 +335,7 @@ continue_statement =
     | 'continue'
 
 return_statement =
-    | 'return' exprs
-
-yield_statement =
-    | yield_expr
+    | 'return' exprs?
 
 raise_statement =
     | 'raise' (expr ('from' expr))?
@@ -343,7 +345,7 @@ flow_statement =
     | continue_statement
     | return_statement
     | raise_statement
-    | yield_statement
+    | yield_expr
 
 assignment_op =
     | '+='
@@ -362,37 +364,55 @@ assignment_op =
     | '='
 
 assignment_annotation =
-    | ':' type ('=' rest_indentable_expr)?
+    | ':' type_annotation ('=' rest_indentable_expr)?
 
 assignment_statement =
     | lhs assignment_annotation
     | lhs assignment_op (yield_expr | rest_indentable_exprs)
-    | lhs ('=' lhs)+  '=' (yield_expr | rest_indentable_exprs)
+    | lhs ('=' lhs)+ '=' (yield_expr | rest_indentable_exprs)
 
-dotted_name =
+path =
     | identifier ('.' identifier)*
 
-dotted_as_name =
-    | dotted_name ('as' identifier)?
-
-import_name =
-    | 'import' dotted_as_names
-
-import_as_name =
+import_sub_path_with_alias =
     | identifier ('as' identifier)?
 
-import_as_names =
-    | import_as_name (',' import_as_name)* ','?
+import_sub_paths_with_alias =
+    | import_sub_path_with_alias (',' import_sub_path_with_alias)* ','?
+
+import_main_path =
+    | '.'* path
+    | '.'+
+
+import_sub_paths =
+    | '*'
+    | '(' import_sub_paths_with_alias ')'
+    | import_sub_paths_with_alias
+
+import_main_path_with_alias =
+    | import_main_path ('as' identifier)?
+
+import_main =
+    | 'import' main_path_with_alias
 
 import_from =
-    | 'from' ('.'* dotted_name | '.'+) 'import' ('*' | '(' import_as_names ')' | import_as_names))
+    | 'from' import_main_path 'import' import_sub_paths
 
 import_statement =
-    | import_name
+    | import_main
     | import_from
 
 decorator_statement =
-    | '@' dotted_name arguments?
+    | '@' path ('(' arguments ')')? newline
+
+decorators =
+    | decorator_statement+
+
+async_func_def =
+    | 'async' func_def
+
+decorated_statement =
+    | decorators (class_def | func_def | async_func_def)
 
 compound_statement:
     | if_statement
@@ -400,26 +420,31 @@ compound_statement:
     | for_statement
     | try_statement
     | with_statement
-    | decorator_statement
+    | decorated_statement
     | func_def
     | class_def
     | async_statement
 
 small_statement =
     | assignment_statement
+    | indentable_exprs
     | pass_statement
     | flow_statement
+    | del_statement
     | import_statement
     | global_statement
     | nonlocal_statement
     | assert_statement
 
-simple_statement =
+simple_statement = # Newline token is ignored when a dedent token or no token comes next.
     | small_statement (';' small_statement)* ';'? newline
 
 statement =
-    | simple_statement
     | compound_statement
+    | simple_statement
+
+statements =
+    | (newline | statement)+
 
 program =
-    | (newline | statement)+
+    | statements?

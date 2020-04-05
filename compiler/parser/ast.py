@@ -272,12 +272,16 @@ class Function(AST):
         params=[],
         return_type_annotation=None,
         generics_annotation=None,
+        is_async=False,
+        decorators=[],
     ):
         self.name = name
         self.body = body
         self.params = params
         self.return_type_annotation = return_type_annotation
         self.generics_annotation = generics_annotation
+        self.is_async = is_async
+        self.decorators = decorators
 
 
 class TupleRestExpr(AST):
@@ -390,9 +394,10 @@ class WithArgument(AST):
 
 
 class WithStatement(AST):
-    def __init__(self, arguments, body):
+    def __init__(self, arguments, body, is_async=False):
         self.arguments = arguments
         self.body = body
+        self.is_async = is_async
 
 
 class Except(AST):
@@ -413,12 +418,15 @@ class TryStatement(AST):
 
 
 class ForStatement(AST):
-    def __init__(self, var_expr, iterable_expr, body, else_body, where_expr=None):
+    def __init__(
+        self, var_expr, iterable_expr, body, else_body, where_expr=None, is_async=False
+    ):
         self.var_expr = var_expr
         self.iterable_expr = iterable_expr
         self.body = body
         self.else_body = else_body
         self.where_expr = where_expr
+        self.is_async = is_async
 
 
 class WhileStatement(AST):
@@ -499,11 +507,14 @@ class GenericsAnnotation(AST):
 
 
 class Class(AST):
-    def __init__(self, name, body, parent_classes=[], generics_annotation=None):
+    def __init__(
+        self, name, body, parent_classes=[], generics_annotation=None, decorators=[]
+    ):
         self.name = name
         self.body = body
         self.parent_classes = parent_classes
         self.generics_annotation = generics_annotation
+        self.decorators = decorators
 
 
 class ListLHS(AST):
@@ -514,3 +525,84 @@ class ListLHS(AST):
 class TupleLHS(AST):
     def __init__(self, exprs):
         self.exprs = exprs
+
+
+class Globals(AST):
+    def __init__(self, names):
+        self.names = names
+
+
+class NonLocals(AST):
+    def __init__(self, names):
+        self.names = names
+
+
+class AssertStatement(AST):
+    def __init__(self, cond_expr, message_expr=None):
+        self.cond_expr = cond_expr
+        self.message_expr = message_expr
+
+
+class DelStatement(AST):
+    def __init__(self, names):
+        self.names = names
+
+
+class PassStatement(AST):
+    def __init__(self):
+        pass
+
+
+class BreakStatement(AST):
+    def __init__(self):
+        pass
+
+
+class ContinueStatement(AST):
+    def __init__(self):
+        pass
+
+
+class ReturnStatement(AST):
+    def __init__(self, exprs=[]):
+        self.exprs = exprs
+
+
+class RaiseStatement(AST):
+    def __init__(self, expr=None, from_expr=None):
+        self.expr = expr
+        self.from_expr = from_expr
+
+
+class AssignmentStatement(AST):
+    def __init__(self, lhses, assignment_op, value_expr, type_annotation=None):
+        self.lhses = lhses
+        self.assignment_op = assignment_op
+        self.value_expr = value_expr
+        self.type_annotation = type_annotation
+
+
+class MainPath(AST):
+    def __init__(self, path_names, alias=None, relative_level=0):
+        self.path_names = path_names
+        self.relative_level = relative_level
+        self.alias = alias
+
+
+class SubPath(AST):
+    def __init__(self, path_names, alias=None, is_import_all=False):
+        self.is_import_all = is_import_all
+        self.path_names = path_names
+        self.alias = alias
+
+
+class ImportStatement(AST):
+    def __init__(self, main_path, sub_paths):
+        self.main_path = main_path
+        self.sub_paths = sub_paths
+
+
+class Decorator(AST):
+    def __init__(self, path, arguments):
+        self.path = path
+        self.arguments = arguments

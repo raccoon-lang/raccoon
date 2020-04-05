@@ -18,6 +18,9 @@ NOTE:
 
 TODO:
     - Regex literal lexing
+
+GUIDELINES:
+    - ...
 """
 
 from enum import Enum

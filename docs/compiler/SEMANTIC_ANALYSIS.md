@@ -79,6 +79,8 @@
     - inherited methods
     - function overloads
     - method overrides
+    - function arguments
+    - class fields
 
 
 - WRONG CONTEXT
@@ -119,6 +121,12 @@
     #### AFFECTED ELEMENTS
     - variables
 
+- ARGUMENT POSITION
+
+    There are a bunch of rules that affect how arguments are positioned based on parameter specification.
+
+    #### AFFECTED ELEMENTS
+    - arguments
 
 # LOWERING
 #### TYPES

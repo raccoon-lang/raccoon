@@ -2,7 +2,17 @@
 A packrat parser for parsing Raccoon's syntax.
 
 Check `compiler/parser/parser.grammar` for the language's parser grammar specification.
+
+GUIDELINES:
+    - Add/edit corresponding rule in grammar file if you are adding/editing a parser function.
+    - Generally before adding/changing your parser function check if you can resuse the code of
+      a similar implementation in the code.
+    - AST constructors are called with positional arguments. Don't use named arguments, args or
+      kwargs.
+    - The `is not None` chack is not needed in a lot of places, but it should be added for
+      convention and to prevent ocassional cases where they are needed and might lead to bugs.
 """
+
 from functools import wraps
 from ..lexer.lexer import TokenKind
 from .ast import (
@@ -64,6 +74,20 @@ from .ast import (
     Class,
     ListLHS,
     TupleLHS,
+    Globals,
+    NonLocals,
+    AssertStatement,
+    DelStatement,
+    PassStatement,
+    BreakStatement,
+    ContinueStatement,
+    ReturnStatement,
+    RaiseStatement,
+    AssignmentStatement,
+    MainPath,
+    SubPath,
+    ImportStatement,
+    Decorator
 )
 
 
@@ -252,7 +276,7 @@ class Parser:
 
         self.revert_data = (self.cursor, *self.get_line_info())
 
-    def revertable(self, cond):
+    def revertable(self, expr):
         """
         Reverts parser state to previously registered revert state.
 
@@ -263,7 +287,7 @@ class Parser:
         match `expr` and since the sub rule is optional, the parser won't fail but the already
         eaten `','` will become unavailable to the next parser.
         """
-        if not cond:
+        if not expr:
             self.revert(*self.revert_data)
         else:
             # This is needed for while/for loops, otherwise the revert state will
@@ -271,7 +295,7 @@ class Parser:
             # state to update on each iteration.
             self.register_revert()
 
-        return cond
+        return expr
 
     @backtrackable
     @memoize
@@ -872,8 +896,6 @@ class Parser:
         rule = 'lambda' lambda_params? ':' indent statement+ dedent
         """
 
-        # TODO: Change expr to statement
-
         if self.consume_string("lambda") is not None:
             params = params if (params := self.lambda_params()) else []
 
@@ -881,14 +903,14 @@ class Parser:
                 self.consume_string(":") is not None
                 and self.indent() is not None
             ):
-                exprs = []
-                while (expr := self.expr()) is not None:
-                    exprs.append(expr)
+                statements = []
+                while (statement := self.statements()) is not None:
+                    statements.append(statement)
 
                 # There should be at least an expression.
                 # TODO: Raise error if block has dedent but no expression.
                 if self.dedent() is not None and len(expr) > 0:
-                    return Function(None, exprs, params)
+                    return Function(None, statements, params)
 
         return None
 
@@ -1020,7 +1042,7 @@ class Parser:
     @memoize
     def sync_comprehension_for(self):
         """
-        rule = 'for' for_lhs 'in' indentable_expr comprehension_iter?
+        rule = 'for' for_lhs 'in' indentable_expr comprehension_where?
         """
 
         result = None
@@ -1149,8 +1171,9 @@ class Parser:
 
             return named_expr
 
-        if (rest_indentable_expr := self.rest_indentable_expr) is not None:
-            if comprehension_for := self.comprehension_for() is not None:
+        self.revert(cursor, row, column)
+        if (rest_indentable_expr := self.rest_indentable_expr()) is not None:
+            if (comprehension_for := self.comprehension_for()) is not None:
                 comprehension_for.expr = rest_indentable_expr
                 return comprehension_for
 
@@ -1255,7 +1278,7 @@ class Parser:
     @memoize
     def subscript(self):
         """
-        rule = subscript (',' subscript)* ','?
+        rule = subscript_index (',' subscript_index)* ','?
         """
 
         result = self.subscript_index()
@@ -1278,6 +1301,26 @@ class Parser:
 
     @backtrackable
     @memoize
+    def all_string(self):
+        """
+        rule =
+            | string
+            | byte_string
+            | prefixed_string
+        """
+
+        if (
+            (string := self.string()) is not None
+            or (string := self.byte_string()) is not None
+            or (string := self.prefixed_string()) is not None
+        ):
+            return string
+
+        return None
+
+
+    @backtrackable
+    @memoize
     def atom(self):
         """
         rule =
@@ -1285,12 +1328,15 @@ class Parser:
             | '(' yield_expr ')'
             | '{' dict_or_set? '}'
             | '[' indentable_exprs_or_comprehension? ']'
-            | identifier
             | float
-            | string+
+            | all_string+
             | 'None'
             | 'True'
             | 'False'
+            | identifier
+
+        SPECIAL BEHAVIOR:
+            When `string+` has more than one `string` it gets compiled as a stringlist.
         """
 
         cursor, row, column = self.cursor, *self.get_line_info()
@@ -1301,8 +1347,8 @@ class Parser:
             if self.consume_string(")") is not None:
                 result = exprs
 
-                # Check if this can be a tuple expression
-                # like (), (expr,) or (x, y)
+                # Check if this can be a tuple expression like (), (expr,) or (x, y)
+                # also check if its is a comperehension
                 if exprs is None:
                     result = Tuple()
                 elif self.tokens[self.cursor - 1].data == ",":
@@ -1352,8 +1398,7 @@ class Parser:
             return integer
 
         # SEVENTH ALTERNATIVE
-        if (string := self.string()) is not None:
-
+        if (string := self.all_string()) is not None:
             string_list = [string]
             while(more_string := self.string()) is not None:
                 string_list.append(more_string)
@@ -1909,6 +1954,7 @@ class Parser:
         rule =
             | function_type
             | list_type
+            | tuple_type
             | generic_type
             | identifier
         """
@@ -1985,36 +2031,44 @@ class Parser:
         """
         rule =
             | assignment_statement
-            | indent (import_statement | assignment_statement | class_def | 'async'? func_def | string)+ dedent
+            | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string)+ dedent
+
+        SPECIAL BEHAVIOR:
+            When `string+` has more than one `string` it gets compiled as a stringlist.
         """
 
-        # TODO: Add import_statement
-        # TODO: Add assignment_statement
-        # TODO: Add func_def
-
-        if False: # TODO: Add assignment_statement
-            pass
+        if (assignment_statement := self.assignment_statement()) is not None:
+            return [assignment_statement]
 
         if self.indent() is not None:
             statements = []
 
             while (
-                (expr := self.class_def()) is not None
-                or (expr := self.string()) is not None
+                (statement := self.import_statement()) is not None
+                or (statement := self.assignment_statement()) is not None
+                or (statement := self.class_def()) is not None
+                or (statement := self.async_func_def()) is not None
+                or (statement := self.func_def()) is not None
+                or (statement := self.string()) is not None
             ):
                 # We store consecutive strings together as a string_list
-                if type(expr) == String and statements:
+                if (
+                    statements
+                    and (ty := type(statement)) == String
+                    and ty == ByteString
+                    and ty == PrefixedString
+                ):
                     prev_statement = statements[-1]
 
                     if type(prev_statement) == String:
-                        statements[-1] = StringList([statements[-1], expr])
+                        statements[-1] = StringList([statements[-1], statement])
 
                     elif type(prev_statement) == StringList:
-                        statements[-1].strings.append(expr)
+                        statements[-1].strings.append(statement)
                     else:
-                        statements.append(expr)
+                        statements.append(statement)
                 else:
-                    statements.append(expr)
+                    statements.append(statement)
 
             # There should be at least an expression.
             # TODO: Raise error if block has dedent but no expression.
@@ -2068,10 +2122,10 @@ class Parser:
         # FIRST ALTERNATIVE
         if (
             self.consume_string("[") is not None
-            and (subscript := self.subscript()) is not None
+            and (subscripts := self.subscripts()) is not None
             and self.consume_string("]") is not None
         ):
-            return subscript
+            return subscripts
 
         # SECOND ALTERNATIVE
         self.revert(cursor, row, column)
@@ -2339,25 +2393,20 @@ class Parser:
         """
         rule =
             | simple_statement
-            | indent statement+ dedent
+            | indent statements dedent
         """
 
-        # TODO: Change expr to simple_statement
+        if (statement := self.simple_statement()) is not None:
+            return [statement]
 
-        if (expr := self.expr()) is not None:
-            return expr
-
-
-        if self.indent() is not None:
-            exprs = []
-
-            while (expr := self.expr()) is not None:
-                exprs.append(expr)
-
-            # There should be at least an expression.
-            # TODO: Raise error if block has dedent but no expression.
-            if self.dedent() is not None and exprs:
-                return exprs
+        # There should be at least an expression.
+        # TODO: Raise error if block has dedent but no expression.
+        if (
+            self.indent() is not None
+            and (statements := self.statements()) is not None
+            and self.dedent() is not None
+        ):
+            return statements
 
         return None
 
@@ -2391,7 +2440,6 @@ class Parser:
             )):
                 return_type_annotation = return_type_annotation
 
-
             if (
                 self.consume_string(":") is not None
                 and (body := self.func_suite()) is not None
@@ -2399,3 +2447,769 @@ class Parser:
                 return Function(name, body, func_params, return_type_annotation, generics_annotation)
 
         return None
+
+    @backtrackable
+    @memoize
+    def async_statement(self):
+        """
+        rule = 'async' (func_def | with_statement | for_statement)
+        """
+
+        if (
+            self.consume_string("async") is not None
+            and (
+               (statement := self.func_def()) is not None
+               or (statement := self.with_statement()) is not None
+               or (statement := self.for_statement()) is not None
+            )
+        ):
+            statement.is_async = True
+            return statement
+
+        return None
+
+    @backtrackable
+    @memoize
+    def global_statement(self):
+        """
+        rule = 'global' identifier (',' identifier)*
+        """
+
+        if (
+            self.consume_string("global") is not None
+            and (name := self.identifier()) is not None
+        ):
+            names = [name]
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string(",") is not None
+                and (name := self.identifier()) is not None
+            )):
+                names.append(name)
+
+            return Globals(names)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def nonlocal_statement(self):
+        """
+        rule = 'nonlocal' identifier (',' identifier)*
+        """
+
+        if (
+            self.consume_string("nonlocal") is not None
+            and (name := self.identifier()) is not None
+        ):
+            names = [name]
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string(",") is not None
+                and (name := self.identifier()) is not None
+            )):
+                names.append(name)
+
+            return NonLocals(names)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def assert_statement(self):
+        """
+        rule = 'assert' expr (',' expr)?
+        """
+
+        if (
+            self.consume_string("assert") is not None
+            and (cond_expr := self.expr()) is not None
+        ):
+            message_expr = None
+
+            self.register_revert()
+            if (self.revertable(
+                self.consume_string(",") is not None
+                and (message_expr := self.expr()) is not None
+            )):
+                message_expr = message_expr
+
+            return DelStatement(cond_expr, message_expr)
+
+
+
+        return None
+
+    @backtrackable
+    @memoize
+    def del_statement(self):
+        """
+        rule = 'del' identifier (',' identifier)*
+        """
+
+        if (
+            self.consume_string("del") is not None
+            and (name := self.identifier()) is not None
+        ):
+            names = [name]
+
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string(",") is not None
+                and (name := self.identifier()) is not None
+            )):
+                names.append(name)
+
+            return DelStatement(names)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def pass_statement(self):
+        """
+        rule = 'pass'
+        """
+
+        if self.consume_string("pass") is not None:
+            return PassStatement()
+
+        return None
+
+
+    @backtrackable
+    @memoize
+    def break_statement(self):
+        """
+        rule = 'break'
+        """
+
+        if self.consume_string("break") is not None:
+            return BreakStatement()
+
+        return None
+
+
+    @backtrackable
+    @memoize
+    def continue_statement(self):
+        """
+        rule = 'continue'
+        """
+
+        if self.consume_string("continue") is not None:
+            return ContinueStatement()
+
+        return None
+
+
+    @backtrackable
+    @memoize
+    def return_statement(self):
+        """
+        rule = 'return' exprs?
+        """
+
+        if self.consume_string("return") is not None:
+            exprs = self.exprs()
+            return ReturnStatement(exprs or [])
+
+        return None
+
+
+    @backtrackable
+    @memoize
+    def raise_statement(self):
+        """
+        rule = 'raise' (expr ('from' expr))?
+        """
+
+        if self.consume_string("raise") is not None:
+            expr = None
+            from_expr = None
+
+            if (expr := self.expr()):
+                self.register_revert()
+                if (self.revertable(
+                    self.consume_string("from") is not None
+                    and (from_expr := self.expr()) is not None
+                )):
+                    from_expr = from_expr
+
+            return RaiseStatement(expr, from_expr)
+
+        return None
+
+
+    @backtrackable
+    @memoize
+    def flow_statement(self):
+        """
+        rule =
+            | break_statement
+            | continue_statement
+            | return_statement
+            | raise_statement
+            | yield_expr
+        """
+
+        if (
+            (expr := self.break_statement()) is not None
+            or (expr := self.continue_statement()) is not None
+            or (expr := self.return_statement()) is not None
+            or (expr := self.raise_statement()) is not None
+            or (expr := self.yield_expr()) is not None
+        ):
+            return expr
+
+        return None
+
+    @backtrackable
+    @memoize
+    def assignment_op(self):
+        """
+        rule =
+            | '+='
+            | '-='
+            | '*='
+            | '@='
+            | '/='
+            | '%='
+            | '&='
+            | '|='
+            | '^='
+            | '<<='
+            | '>>='
+            | '**='
+            | '//='
+            | '='
+        """
+
+        if (
+            (op := self.consume_string("+=")) is not None
+            or (op := self.consume_string("-=")) is not None
+            or (op := self.consume_string("*=")) is not None
+            or (op := self.consume_string("@=")) is not None
+            or (op := self.consume_string("/=")) is not None
+            or (op := self.consume_string("%=")) is not None
+            or (op := self.consume_string("&=")) is not None
+            or (op := self.consume_string("|=")) is not None
+            or (op := self.consume_string("^=")) is not None
+            or (op := self.consume_string("<<=")) is not None
+            or (op := self.consume_string(">>=")) is not None
+            or (op := self.consume_string("**=")) is not None
+            or (op := self.consume_string("//=")) is not None
+            or (op := self.consume_string("=")) is not None
+        ):
+            return Operator(op)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def assignment_annotation(self):
+        """
+        rule = ':' type_annotation ('=' rest_indentable_expr)?
+        """
+
+        if (
+            self.consume_string(":") is not None
+            and (type_annotation := self.type_annotation()) is not None
+        ):
+            value_expr = None
+            op = None
+
+            self.register_revert()
+            if (self.revertable(
+                (op := self.consume_string("=")) is not None
+                and (value_expr := self.rest_indentable_expr()) is not None
+            )):
+                value_expr = value_expr
+
+            return AssignmentStatement([], Operator(op), value_expr, type_annotation)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def assignment_statement(self):
+        """
+        rule =
+            | lhs assignment_annotation
+            | lhs assignment_op (yield_expr | rest_indentable_exprs)
+            | lhs ('=' lhs)+ '=' (yield_expr | rest_indentable_exprs)
+        """
+
+        cursor, row, column = self.cursor, *self.get_line_info()
+
+        # FIRST ALTERNATIVE
+        if (
+            (lhs := self.lhs()) is not None
+            and (assignment := self.assignment_annotation()) is not None
+        ):
+            assignment.lhses.append(lhs)
+            return assignment
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (
+            (lhs := self.lhs()) is not None
+            and (op := self.assignment_op()) is not None
+        ):
+            if (value_expr := self.yield_expr()) is not None:
+                return AssignmentStatement([lhs], op, value_expr)
+
+            if (value_expr := self.rest_indentable_exprs()) is not None:
+                return AssignmentStatement([lhs], op, value_expr)
+
+
+        # THIRD ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (lhs := self.lhs()) is not None:
+            lhses = [lhs]
+
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string(",") is not None
+                and (lhs := self.lhs()) is not None
+            )):
+                lhses.append(lhs)
+
+            if len(lhses) > 1:
+                if (
+                    (op := self.assignment_op()) is not None
+                    and (value_expr := self.yield_expr()) is not None
+                ):
+                    return AssignmentStatement(lhses, op, value_expr)
+
+                if (
+                    (op := self.assignment_op()) is not None
+                    and (value_expr := self.rest_indentable_exprs()) is not None
+                ):
+                    return AssignmentStatement(lhses, op, value_expr)
+
+            return assignment
+
+        return None
+
+
+    @backtrackable
+    @memoize
+    def path(self):
+        """
+        rule = identifier ('.' identifier)*
+        """
+
+        if (name := self.identifier()) is not None:
+            names = [name]
+
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string(".") is not None
+                and (name := self.identifier()) is not None
+            )):
+                names.append(name)
+
+            return names
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_sub_path_with_alias(self):
+        """
+        rule = identifier ('as' identifier)?
+        """
+
+        if (name := self.identifier()) is not None:
+            alias = None
+
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string("as") is not None
+                and (alias := self.identifier()) is not None
+            )):
+                alias = alias
+
+            return SubPath([name], alias)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_sub_paths_with_alias(self):
+        """
+        rule = import_sub_path_with_alias (',' import_sub_path_with_alias)* ','?
+        """
+
+        if (sub_path := self.import_sub_path_with_alias()) is not None:
+            sub_paths = [sub_path]
+
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string(",") is not None
+                and (sub_path := self.import_sub_path_with_alias()) is not None
+            )):
+                sub_paths.append(sub_path)
+
+            self.consume_string(",")
+
+            return sub_paths
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_main_path(self):
+        """
+        rule =
+            | '.'* path
+            | '.'+
+        """
+
+        cursor, row, column = self.cursor, *self.get_line_info()
+
+        # FIRST ALTERNATIVE
+        relative_level = 0
+        while self.consume_string(".") is not None:
+            relative_level += 1
+
+        if (path := self.path()) is not None:
+            return MainPath(path, None, relative_level)
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
+        relative_level = 0
+        while self.consume_string(".") is not None:
+            relative_level += 1
+
+        if relative_level > 0:
+            return MainPath(None, None, relative_level)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_sub_paths(self):
+        """
+        rule =
+            | '*'
+            | '(' import_sub_paths_with_alias ')'
+            | import_sub_paths_with_alias
+        """
+
+        cursor, row, column = self.cursor, *self.get_line_info()
+
+        # FIRST ALTERNATIVE
+        if self.consume_string("*") is not None:
+            return [SubPath(None, None, True)]
+
+        # SECOND ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (
+            self.consume_string("(") is not None
+            and (paths := self.import_sub_paths_with_alias()) is not None
+            and self.consume_string(")") is not None
+        ):
+            return paths
+
+        # THIRD ALTERNATIVE
+        self.revert(cursor, row, column)
+        if (paths := self.import_sub_paths_with_alias()) is not None:
+            return paths
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_main_path_with_alias(self):
+        """
+        rule = import_main_path ('as' identifier)?
+        """
+
+        if (path := self.import_main_path()) is not None:
+            alias = None
+
+            self.register_revert()
+            if (self.revertable(
+                self.consume_string("as") is not None
+                and (alias := self.identifier()) is not None
+            )):
+                path.alias = alias
+
+            return path
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_main(self):
+        """
+        rule = 'import' import_main_path_with_alias
+        """
+
+        if (
+            self.consume_string("import") is not None
+            and (path := self.import_main_path_with_alias()) is not None
+        ):
+            return ImportStatement(path, None)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_from(self):
+        """
+        rule = 'from' import_main_path 'import' import_sub_paths
+        """
+        if (
+            self.consume_string("from") is not None
+            and (main_path := self.import_main_path()) is not None
+            and self.consume_string("import") is not None
+            and (sub_paths := self.import_sub_paths()) is not None
+        ):
+            return ImportStatement(main_path, sub_paths)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def import_statement(self):
+        """
+        rule =
+            | import_main
+            | import_from
+        """
+
+        if (
+            (statement := self.import_main()) is not None
+            or (statement := self.import_from()) is not None
+        ):
+            return statement
+
+        return None
+
+    @backtrackable
+    @memoize
+    def decorator_statement(self):
+        """
+        rule = '@' path ('(' arguments ')')? newline
+        """
+
+        if (
+            self.consume_string("@") is not None
+            and (path := self.path()) is not None
+        ):
+            arguments = []
+
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string("(") is not None
+                and (arguments := self.arguments()) is not None
+                and self.consume_string(")") is not None
+            )):
+                arguments = arguments
+
+            if self.newline() is not None:
+                return Decorator(path, arguments)
+
+        return None
+
+    @backtrackable
+    @memoize
+    def decorators(self):
+        """
+        rule = decorator_statement+
+        """
+
+        decorator_statements = []
+        while (decorator_statement := self.decorator_statement()) is not None:
+            decorator_statements.append(decorator_statement)
+
+        if len(decorator_statements) > 0:
+            return decorator_statements
+
+        return None
+
+    @backtrackable
+    @memoize
+    def async_func_def(self):
+        """
+        rule = 'async' func_def
+        """
+
+        if (
+            self.consume_string("async") is not None
+            and (func_def := self.func_def()) is not None
+        ):
+            func_def.is_async = True
+            return func_def
+
+        return None
+
+    @backtrackable
+    @memoize
+    def decorated_statement(self):
+        """
+        rule = decorators (class_def | func_def | async_func_def)
+        """
+
+        if (
+            (decorators := self.decorators()) is not None
+            and (
+               (statement := self.func_def()) is not None
+               or (statement := self.class_def()) is not None
+               or (statement := self.async_func_def()) is not None
+            )
+        ):
+            statement.decorators = decorators
+            return statement
+
+        return None
+
+    @backtrackable
+    @memoize
+    def compound_statement(self):
+        """
+        rule =
+            | if_statement
+            | while_statement
+            | for_statement
+            | try_statement
+            | with_statement
+            | decorated_statement
+            | func_def
+            | class_def
+            | async_statement
+        """
+
+        if (
+            (statement := self.if_statement()) is not None
+            or (statement := self.while_statement()) is not None
+            or (statement := self.for_statement()) is not None
+            or (statement := self.try_statement()) is not None
+            or (statement := self.with_statement()) is not None
+            or (statement := self.decorated_statement()) is not None
+            or (statement := self.func_def()) is not None
+            or (statement := self.class_def()) is not None
+            or (statement := self.async_statement()) is not None
+        ):
+            return statement
+
+        return None
+
+    @backtrackable
+    @memoize
+    def small_statement(self):
+        """
+        rule =
+            | assignment_statement
+            | indentable_exprs
+            | pass_statement
+            | flow_statement
+            | del_statement
+            | import_statement
+            | global_statement
+            | nonlocal_statement
+            | assert_statement
+        """
+
+        if (
+            (statement := self.assignment_statement()) is not None
+            or (statement := self.indentable_exprs()) is not None
+            or (statement := self.pass_statement()) is not None
+            or (statement := self.flow_statement()) is not None
+            or (statement := self.del_statement()) is not None
+            or (statement := self.import_statement()) is not None
+            or (statement := self.global_statement()) is not None
+            or (statement := self.nonlocal_statement()) is not None
+            or (statement := self.assert_statement()) is not None
+        ):
+            return statement
+
+        return None
+
+    @backtrackable
+    @memoize
+    def simple_statement(self):
+        """
+        rule = small_statement (';' small_statement)* ';'? newline
+
+        SPECIAL BEHAVIOR:
+            Newline token is ignored when a dedent token or no token comes next.
+        """
+
+        if (first_statement := self.small_statement()) is not None:
+            small_statements = [first_statement]
+
+            self.register_revert()
+            while (self.revertable(
+                self.consume_string(";") is not None
+                and (statement := self.small_statement()) is not None
+            )):
+                small_statements.append(statement)
+
+            self.consume_string(";")
+
+            next_token = None
+            if (next_cursor := self.cursor + 1) < self.tokens_length:
+                next_token = self.tokens[next_cursor]
+
+            # If there is no token or next token is a dedent, ignore newline.
+            if not next_token or next_token.kind == TokenKind.DEDENT:
+                return small_statements if len(small_statements) > 1 else first_statement
+            elif next_token.kind == TokenKind.NEWLINE:
+                return small_statements if len(small_statements) > 1 else first_statement
+
+        return None
+
+    @backtrackable
+    @memoize
+    def statement(self):
+        """
+        rule =
+            | compound_statement
+            | simple_statement
+        """
+        if (
+            (statement := self.compound_statement()) is not None
+            or (statement := self.simple_statement()) is not None
+        ):
+            return statement
+
+        return None
+
+    @backtrackable
+    @memoize
+    def statements(self):
+        """
+        rule = (newline | statement)+
+        """
+
+        statements = []
+        statement = None
+
+        while (
+            self.newline() is not None
+            or (statement := self.statement()) is not None
+        ):
+            if statement:
+                statements.append(statement)
+                statement = None
+
+        if statements:
+            return statements
+
+        return None
+
+    @backtrackable
+    @memoize
+    def program(self):
+        """
+        rule = statements?
+        """
+
+        if (statements := self.statements()) is not None:
+            return statements
+        else:
+            return statements
