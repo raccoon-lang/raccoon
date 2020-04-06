@@ -61,9 +61,9 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     pipenv install
     ```
 
-- Compile and run sample Raccoon code [WIP]
+- Currently only compilation to AST is supported.
     ```sh
-    cli/raccoon samples/test.ra
+    cli/raccoon samples/test.ra --ast
     ```
 
 ### TESTING

@@ -191,7 +191,7 @@
     """
     ERROR
 
-    ord(ch) # ord function exists for char but not None
+    ord(ch) # ord function exists for char but not NoneType
     """
 
     codepoint = ord(ch) if ch else None

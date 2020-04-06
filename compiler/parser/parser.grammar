@@ -322,9 +322,6 @@ nonlocal_statement =
 assert_statement =
     | 'assert' expr (',' expr)?
 
-del_statement =
-    | 'del' identifier (',' identifier)*
-
 pass_statement =
     | 'pass'
 
@@ -430,7 +427,6 @@ small_statement =
     | indentable_exprs
     | pass_statement
     | flow_statement
-    | del_statement
     | import_statement
     | global_statement
     | nonlocal_statement

@@ -2542,30 +2542,6 @@ class Parser:
 
     @backtrackable
     @memoize
-    def del_statement(self):
-        """
-        rule = 'del' identifier (',' identifier)*
-        """
-
-        if (
-            self.consume_string("del") is not None
-            and (name := self.identifier()) is not None
-        ):
-            names = [name]
-
-            self.register_revert()
-            while (self.revertable(
-                self.consume_string(",") is not None
-                and (name := self.identifier()) is not None
-            )):
-                names.append(name)
-
-            return DelStatement(names)
-
-        return None
-
-    @backtrackable
-    @memoize
     def pass_statement(self):
         """
         rule = 'pass'
@@ -3107,7 +3083,6 @@ class Parser:
             | indentable_exprs
             | pass_statement
             | flow_statement
-            | del_statement
             | import_statement
             | global_statement
             | nonlocal_statement
@@ -3119,7 +3094,6 @@ class Parser:
             or (statement := self.indentable_exprs()) is not None
             or (statement := self.pass_statement()) is not None
             or (statement := self.flow_statement()) is not None
-            or (statement := self.del_statement()) is not None
             or (statement := self.import_statement()) is not None
             or (statement := self.global_statement()) is not None
             or (statement := self.nonlocal_statement()) is not None
