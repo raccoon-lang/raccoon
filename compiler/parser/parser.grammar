@@ -194,7 +194,7 @@ arguments =
     | argument (',' argument)* ','?
 
 atom_trailer =
-    | '(' arguments? ')'
+    | '(' arguments? ')' # TODO: generator comprehension
     | '[' subscripts ']'
     | '.' identifier
 
@@ -363,7 +363,7 @@ assignment_op =
 assignment_annotation =
     | ':' type_annotation ('=' rest_indentable_expr)?
 
-assignment_statement =
+assignment_statement = # TODO: Rest destructuring
     | lhs assignment_annotation
     | lhs assignment_op (yield_expr | rest_indentable_exprs)
     | lhs ('=' lhs)+ '=' (yield_expr | rest_indentable_exprs)

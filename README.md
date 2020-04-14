@@ -19,11 +19,8 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     <details>
     <summary>Read more</summary>
 
-    #### WINDOWS
-
-    _TODO_
-
-    #### MAC OS
+    ##### MAC OS
+    ------
 
     Install LLVM with [brew](https://brew.sh/)
 
@@ -31,13 +28,21 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     brew install llvm@8
     ```
 
-    #### DEBIAN
+
+    ##### DEBIAN
+    ------
 
     Install LLVM 8
 
     ```
     apt-get install llvm-8
     ```
+
+
+    ##### WINDOWS
+    ------
+
+    ...
 
     ------
 
@@ -66,33 +71,33 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     cli/raccoon samples/test.ra --ast
     ```
 
-### TESTING
-##### REQUIREMENTS
-- Same as [setting up the project](#setting-up-the-project)
-
-##### STEPS
-- You can run all the tests in a single command.
-    ```bash
-    pipenv run pytest
-    ```
-
-### USAGE
-- Show help info
-    ```sh
-    cli/raccoon --help
-    ```
-
-- Compile and execute a Raccoon source file [WIP]
-    ```sh
-    cli/raccoon samples/test.ra
-    ```
 
 ### LANGUAGE DESIGN
 Raccoon is similar to Python in a lot of ways, but being a statically-typed language, it made some trade-offs to ensure predictable performance. In this respect, Raccoon is not always compatible with Python.
 
 Raccoon's type system is also similar to Python's although it is a bit more fleshed out. While Raccoon prioritizes a design that benefits static analysis, it still allows Python's level of flexibility where statically determinable. This is why type inference and structural typing are an important part of Raccoon.
 
-For more details, check [NOTES.md](NOTES.md)
+```py
+class Person:
+    population = 0
+
+    def __init__(self, name, gender="Male", age=None):
+        Person.population += 1
+
+        self.name = name
+        self.gender = gender
+
+        if age is not None:
+            self.age = age
+
+    def __del__(self):
+        Person.population -= 1
+
+jane = Person("Jane Doe", "Female", 23)
+print(jane.name, jane.gender, jane.age)  # "Jane Female 23"
+```
+
+You can check [samples folder](#samples) for more examples.
 
 ### LICENSE
 [Apache License 2.0](LICENSE)

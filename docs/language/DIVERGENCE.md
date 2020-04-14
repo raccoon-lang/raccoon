@@ -9,9 +9,9 @@
 
 - Declaration
 
-    - Declaration of classes and functions work a bit different in Raccoon.
+    - Declaration of variables, classes and funcions must be statically determinable
 
-        Because Raccoon needs to determine a class and function at compile-time, it doesn't support dynamic loading of classes or functions the way Python does. It also doesn't provide a lot of hooks found in builtin module
+        Because Raccoon needs to determine a class, function and variable at compile-time, it doesn't support dynamic loading of variables, classes or functions the way Python does. It also doesn't provide a lot of hooks found in builtin module
 
 - Type annotations
 
@@ -60,6 +60,16 @@
         """
         ```
 
+- List
+
+    - Slices do not return list, instead they return a slice object
+
+        ```py
+        ls = [1, 2, 3, 4, 5, 6, 7]
+        slc = [:5] # Slice[int]
+
+        print(slc) # [1, 2, 3, 4]
+        ```
 
 - Tuples
 
@@ -136,19 +146,6 @@
         """
         ```
 
-    - Functions that return nothing, don't return None implicitly.
-
-        ```py
-        def foo():
-            2 + 3
-
-        """
-        ERROR
-
-        print(foo()) # foo returns nothing
-        """
-        ```
-
 - Imports
 
     - Raccoon resolves imported modules at compile-time
@@ -159,6 +156,26 @@
         from objects import Person
 
         john = Person(name)
+        ```
+
+    - Imports in a module are not exposed to outside modules
+
+        ```py
+        # moudle.ra
+        import another
+
+        another.print()
+        ```
+
+
+        ```py
+        import module
+
+        """
+        ERROR
+
+        module.another.print() # 
+        """
         ```
 
 - Variable
@@ -192,55 +209,28 @@
 
 - StopIteration
 
-    - Exception handling as a means of control flow is expensive.
+    - StopIteration is expected to be returned rather than raised.
 
         ```py
-        for i in range(10):
-            print(25)
+        class list:
+            def __iter__(self)
+                return list_iterator(self)
 
-        d = { 'name': 'John', 'age': 56 }
-        """
-        ERROR
+        class list_iterator:
+            def __init__(self, list):
+                self.list = list
+                self.counter = 0
 
-        gender = d['gender']
-        """
+            def __next__(self):
+                if self.counter < len(list):
+                    result = list[self.counter]
+                    self.counter += 1
+                    return result
+                else:
+                    return StopIteration()
         ```
 
-        StopIteration is expected to be returned rather than raised.
-        In the case of generators, returning nothing marks the end of an iteration.
-
-        - Iterables
-
-            ```py
-            class list:
-                def __iter__(self)
-                    return list_iterator(self)
-
-            class list_iterator:
-                def __init__(self, list):
-                    self.list = list
-                    self.counter = 0
-
-                def __next__(self):
-                    if self.counter < len(list):
-                        result = list[self.counter]
-                        self.counter += 1
-                        return result
-                    else:
-                        return StopIteration
-            ```
-
-        - Generators
-
-            ```py
-            def range(x: int):
-                count = 0
-                while count < x:
-                    yield count
-                    count += 1
-                return
-            ```
-
+        For loops use StopIteration to halt iteration on iterables and None in the case of generators.
 
 - Concurrency
 

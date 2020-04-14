@@ -33,20 +33,20 @@
         - funtion(Super) - 3
 
     - lists
-        - list{Any} - 3
-        - list{Dog { name: str}} - Not supported
-        - list{Type} - 2
-        - list{Super} - 3
+        - list[Any] - 3
+        - list[Dog { name: str}] - Not supported
+        - list[Type] - 2
+        - list[Super] - 3
 
 
     ##### POSSIBLE SOLUTIONS
-    - Type witness table
+    - Value witness table
     - Type inference algorithm
-    - Type interface and specialisations list
-    - Function interface and monomporphisations list
-        - print({id}, {age})
-            - print({id: int}, {age: int})
-            - print({id: str}, {age: int})
+    - Type interface and instatiation list
+    - Function interface and instantiation list
+        -  ({ id: _ }, { age: _ }) :: print
+            - ({ id: int }, { age: int }) :: print
+            - ({ id: str }, { age: int }) :: print
 
 
 
@@ -58,10 +58,9 @@
         When it is statically known that two elements directly or indirectly depend on each other.
 
         ##### AFFECTED ELEMENTS
-        - function calls
-        - type instantiation
         - module import
         - inheritance
+        - reference (cycle)
 
 
     - USE BEFORE DECLARATION
@@ -80,10 +79,10 @@
 
         ##### AFFECTED ELEMENTS
         - inherited methods
+        - inherited fields
+        - overriden inherited method
         - function overloads
-        - method overrides
         - function arguments
-        - class fields
 
 
     - WRONG CONTEXT
@@ -94,17 +93,6 @@
         - yield statement
         - return statement
         - rest expression
-
-
-    ##### POSSIBLE SOLUTIONS
-    - Dispatch table
-    - MRO algorithm
-    - Scope tree
-    - Symbol table
-    - Dependency graph
-    - Import graph
-    - Control flow graph
-    - Inheritance tree
 
 
 - RESTRICTIONS
@@ -134,6 +122,27 @@
         ##### AFFECTED ELEMENTS
         - arguments
 
+    - EFFECTS [FUTURE]
+
+        Making each function have an implicit effect and being able check the effect of any function.
+
+        Examples of effects:
+        - Exceptions
+        - File access
+        - Network access
+
+
+- CONSISTENCY
+
+    ##### TYPES
+    - PARAMETER TYPE AND RETURN TYPE
+
+        If a function has a parameter type restrictions, it must also have a return type and vice versa. If the function returns nothing, the return type can be ommitted.
+
+        ##### AFFECTED ELEMENTS
+        - functions
+
+
 - LOWERING
 
     ##### TYPES
@@ -151,6 +160,13 @@
         #### AFFECTED ELEMENTS
         - macros
 
+- EXTENSION [FUTURE]
+
+    Allowing some aspects of the compiler be extended to third party code
+
+    Features like:
+    - SRT
+    - Effects
 
 
 ## NOTES
@@ -159,37 +175,25 @@
 
     Raccoon has certain worldviews that make the semantic analysis phase easier to understand and implement.
 
-    - A function, in Raccoon implementation parlance, is a regular function, a method, a closure or an operator.
+    - A method, in Raccoon implementation, is a regular function, a method, a closure or an operator.
+
+        Each method can be instantiated multiple times by calling them and each instantiation has an abi.
+
     - Every object has a structure and classes are how we describe or classify those structures. We only think in terms of classes when we need to compare an object's structure with a class' blueprint structure.
-    - Inheritance / variance is an abstraction we only care about for validation/type-checking purposes. Relationship between objects are only seen in terms of how similar their structures are.
+
     - Global variables are variables that persist throughout the lifetime of a program. Global variables include variables declared at the top-level, class fields and variables from a parent scope referenced by a closure.
 
-- Analysis artifacts
+    - Inheritance / variance is an abstraction we only care about for validation/type-checking purposes. Relationship between objects are only seen in terms of how similar their structures are.
 
-    - Scope tree
+    - Field conflict in multiple inheritance is seen as a structural problem rather than a type one.
 
-        - Object end-of-lifetime (EOL) list
+        As mentioned earlier, types are only important for type checking type annotations and the language is largely driven by structural inferences and instantiations based on those structure. So conflict like this is seen as a structure problem. Sub classes choose a general structure for themselves so that they won't have conflicting fields.
 
-            Each scope contain a list of objects' EOL.
-            Starting from the declaration scope, each object's EOL point is adjusted as new references to it are encountered in the declaration scope or in a parent's scope.
-
-        - Type frames
-
-            A type frame is created for each function.
-            This type frame holds a list of functions called in the function's scope.
-            To instantiate a type frame, we need to validate that the types in the scope truly have an associated function instantiation. Validations for existing instantiations are skipped.
-
-            An instantiation [shouldn't clone the AST](https://github.com/crystal-lang/crystal/issues/4864#issue-251536917).
-
-        - Type method resolution order (MRO) lists (C3 linearization)
-
-        - Type instantiations
-
-        - Function instantiations
 
 - Indices and Slices
 
     - Negative indices
+
         ```py
         subarray = array[:-2]
         value = array[:-2]
@@ -210,17 +214,31 @@
             raise OutOfBoundsError('...')
         ```
 
+    - Slice
+
+        A slice is a view into a list so it holds a reference to a list and has the same lifetime as the list.
+
+        ```py
+        ls = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+        sl = ls[1:4] # sl: Slice[int]
+        ```
+
+        ##### IMPLEMENTATION
+
+        ```py
+        """
+        { start: uint, end: uint, list: ptr _ } :: Slice
+        """
+        ```
+
+
 - Lists
 
     - Uninitialized list
+
         ```py
-        ls = []
-
-        """
-        ERROR
-
-        print(ls)
-        """
+        ls = [] # ls: [str]
 
         def func(ls):
             ls.append('hi')
@@ -228,11 +246,26 @@
         func(ls)
         ```
 
-        ##### IMPLEMENTATION
-
         If a list is uninitialized, we wait until it is first used. Its type is inferred based on how it is used.
 
-        If it is passed as an argument to a function, its type is determined by the argument type, otherwise it is determined by its usage in the function's body.
+        However if one needs an any list, the type needs to be specified upfront.
+
+        ```py
+        ls: [Any] = []
+
+        ls.append(Person("John"))
+        ls.append(Cat("Sam"))
+        ```
+
+        An empty list can be used. It has a type `[Any]`.
+
+        ```py
+        ls = []
+
+        print(ls, type(ls)) # [], [Any]
+        ```
+
+
 
 - Variable
 
@@ -251,6 +284,7 @@
 
 
     - Shadowing
+
         ```py
         num = 45
         num = "hi"
@@ -279,7 +313,7 @@
 
         ```py
         """
-        john: Object [ name: str, age: int ]
+        john: { name: str, age: int }
         """
         ```
 
@@ -288,7 +322,7 @@
 
 - Closures
 
-    `closure = func(*args, ref env)`
+    `closure(*args) = func(*args, ptr env)`
 
     ```py
     def higher_order():
@@ -318,27 +352,27 @@
 
         Structural typing can be used in place of duck typing. In fact, Raccoon sees type and object relationships structurally.
 
-        Functions are actually instantiations with abis that conform to argument binary structures.
+        Functions are actually instantiations with abis and any number of types can conform to the instantiation abi.
 
         ```py
         """
-        cat: Cat [ name: str ]
-        john: Person [ age: int, name: str ]
-        hibiscus: Plant [ name: int, age: int ]
-        elephant: Herbivore [ name: int ]
+        cat: { name: str } :: Cat
+        john:  { age: int, name: str } :: Person
+        hibiscus: { name: int, age: int } :: Plant
+        elephant: { name: int } :: Herbivore
         """
 
-        foo(cat)
-        foo(john)
-        foo(hibiscus)
-        foo(elephant)
+        print_name(cat)
+        print_name(john)
+        print_name(hibiscus)
+        print_name(elephant)
 
         """
         INSTANTIATIONS
 
-        foo: (Object [ str ])
-        foo: (Object [ *, str ])
-        foo: (Object [ int, * ])
+        (ref { _: str }) -> void :: foo
+        (ref { _: int, _: str }) -> void :: foo
+        (ref { _: int, ... }) -> void :: foo
         """
         ```
 
@@ -383,21 +417,24 @@
                 get_name(cat)
 
                 """
-                get_name: (Object [ str, * ])
+                get_name: (Cat) -> str
                 """
                 ```
 
-            - List elements
+            - List
+
                 ```py
-                animals: Animal = []
+                pets: [Pet] = []
 
-                animals.append(Cat())
-                animals.append(Dog())
+                print(pets)
 
-                print(animals[0])
+                pets.append(Cat())
+                pets.append(Dog())
+
+                print(pets[0])
 
                 """
-                animals: list{Cat | Dog}
+                pets: list[Cat | Dog]
                 """
                 ```
 
@@ -413,12 +450,12 @@
                     def clone(self) -> Toyota:
                         return Toyota(*vars(self))
 
-                cars: list{Vehicle} = [Toyota(), Mazda()]
+                cars: list[Vehicle] = [Toyota(), Mazda()]
 
                 cars[0].clone()
 
                 """
-                animals: list{Cat | Dog}
+                animals: list[Cat | Dog]
                 """
                 ```
 
@@ -426,7 +463,7 @@
 
             - Functions
                 ```py
-                typealias IdentityFunc{T}: (T) -> T
+                alias IdentityFunc[T]: (T) -> T
 
                 def identity_animal(x: Animal):
                     return x
@@ -434,19 +471,39 @@
                 def identity_cat(x: Cat):
                     return x
 
-                compare: IdentityFunc{Cat} = identity_animal
+                compare: IdentityFunc[Cat] = identity_animal
 
                 """
                 ERROR
 
-                compare: IdentityFunc{Animal} = identity_cat
+                compare: IdentityFunc[Animal] = identity_cat
                 """
+                ```
+        * Any
+
+            If a union of types do not share a common ancestor apart from object, it is classified `Any`.
+            Note that Any is a user-facing concept only. The compiler still keeps union of possible types.
+
+            Any has the abi `{ type_id: uint, obj: ptr _ }`.
+
+            - List
+
+                ```py
+                def encounter(a, b):
+                    print(f"{a.name} meets {b.name}")
+
+                objects: [Any] = [Cat(), Person(), ...]
+
+                pet_1 = pets[index_1]
+                pet_2 = pets[index_2]
+
+                encounter(pet_1, pet_2) # (Any, Any) -> void or (Cat | Person | ..., Cat | Person | ...) -> void
                 ```
 
 
         ##### IMPLEMENTATION
 
-        Variables with uncertain types don't make it far because to use them with any function require that any field or method accessed through them exists across the types.
+        Variables with union types don't make it far because to use them with any function require that any field or method accessed through them exists across the types.
 
         ```py
         identity: int | str
@@ -463,7 +520,7 @@
         """
         ERROR!
 
-        identity -= 5 # str doesn't have a `-` operand
+        identity -= 5 # str does not implement a `-` operand
         """
 
         if type(identity) == int:
@@ -476,30 +533,51 @@
         """
         ```
 
+        A collection of Any
+
         ```py
-        animals: Animal = [Cat(), Dog()]
+        def encounter(a, b):
+            print(f"{a.name} meets {b.name}")
+
+        objects: [Any] = [Cat(), Person(), ...]
+
+        pet_1 = pets[index_1]
+        pet_2 = pets[index_2]
+
+        encounter(pet_1, pet_2)
 
         """
-        animals: list [
-            len: usize,
-            capacity: usize,
-            buffer: ref buffer [
-                0: ref Object [type: usize, cat: Cat],
-                1: ref Object [type: usize, cat: Dog],
+        objects: list {
+            len: uint,
+            capacity: uint,
+            ... {
+                0: ptr { type_id: uint, cat: ptr _ },
+                1: ptr { type_id: uint, person: ptr _ },
                 ...
-            ]
-        ]
-        """
+            }
+        }
 
-        animal = animals[0]
+        def encounter(
+            a: { type_id: uint, obj: ptr _ },
+            b: { type_id: uint, obj: ptr _ },
+        ):
+            # type_ids are localized to benefit from computed gotos.
+            @goto a.type_id:
+                @label "::Dog":
+                    a = * unsafe_cast.[Dog](obj)
+                @label "::Person":
+                    a = * unsafe_cast.[Person](obj)
+                ...
 
-        """
-        animal: Cat | Dog
-        """
+            @goto b.type_id:
+                @label "::Dog":
+                    a = * unsafe_cast.[Dog](obj)
+                @label "::Person":
+                    a = * unsafe_cast.[Person](obj)
+                ...
 
-        if animal := cast{Cat}(animal):
-            animal.meow()
-        ```
+            print(f"{a.name} meets {b.name}")
+        """
 
     #### IMPLEMENTATION
 

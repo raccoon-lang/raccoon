@@ -1,9 +1,10 @@
 
 
 ## GARBAGE COLLECTION
-In Swift, variables are deallocated in their declaration stack frames or parents of that. Never a child frame of the declaration scope. Raccoon takes a similar approach.
 
 - Automatic Reference Counting (ARC)
+
+    Swift uses a reference counting system to determine when to deallocate a variable. In release mode, it deallocates after the last expression it is used.
 
     Typical ARC implementation cannot break reference cycles.
 
@@ -52,134 +53,86 @@ In Swift, variables are deallocated in their declaration stack frames or parents
 
     Since lifetimes can be tracked statically, I don't see the runtime benefit of ARC.
 
-- Static Reference Tracking (SRT)
+- Static Reference Tracking (SRT) [WIP]
 
-    SRT is a deallocation technique that tracks objects' lifetimes at compile-time and can break reference cycles.
+    I'm proposing a different style of ARC that is not susceptible to reference cycles and perhaps more efficient because ref counting is done at compile-time. I'm going to call it `Static Reference Tracking` for now because I am not aware of any literature on it.
 
-    - Non-concurrent programs
+    Static Reference Tracking (SRT) is a deallocation technique that tracks objects' lifetimes at compile-time and can break reference cycles statically.
 
-        ```py
-        parent = Parent()
+    ```
+    foo {
+        a      = Obj1()
+        b      = Obj2()
+        c      = Obj3()
+        d      = Obj4()
 
-        """
-        Parent_0 [ &parent ]
-        """
+        free_owned_deallocatable :: b
 
-        child = Child()
+        c <- a = Obj3() <- Obj1
 
-        """
-        Parent_0 [ &parent ]
-        Child_0 [ &child ]
-        """
+        set_global_deallocatable_ptr :: has objects it needs inner functions to deallocate
 
-        parent.child = child
+        bar (c, a, d) { // knows nothing about parent function
+            a <- c = Obj1() <- Obj3() :: reference cycle!
+            e      = Obj5()
 
-        """
-        Parent_0 [ &parent ]
-        Child_0 [ &child, &parent ]
-        """
+            free_owned_deallocatable :: e
 
-        child.parent = parent
+            qux (d) { // knows nothing about parent function
+                free_transferred_deallocatable :: d
+            }
 
-        """
-        Parent_0 [ &parent, &child ]
-        Child_0 [ &child, &parent ]
-
-        DEALLOCATION POINT
-        ==================
-
-        > unrefer parent (*parent = null)
-
-        Parent_0 [ null, &child ]
-        Child_0 [ &child, null ]
-
-        > unrefer child (*child = null)
-
-        Parent_0 [ null, null ]
-        Child_0 [ null, null ]
-
-        > deallocate objects with only null references
-
-        problem:
-        - uses more memory than ARC
-        """
-
-        print('Hello!')
-        ```
-
-    - Concurrent programs
-
-        Ordinary SRT is not well-suited for concurrent programs because there is no statically known order to how threads execute.
-
-        ```py
-        async def foo(parent, child):
-            print(parent, child)
-
-        parent = Parent()
-        child = Child()
-        parent.child = child
-        child.parent = parent
-
-        for i in range(2):
-            """
-            increment Parent_0 (.forks += 1) [ &parent, &child ]
-            increment Child_0 (.forks += 1) [ &child, &parent ]
-            """
-            foo(parent, child)
-
-        print(parent, child)
-
-        """
-        COROUTINES
-
-            0     1     2
-            =================
-            __main__
-            |
-            ---- foo
-            |     |
-            ---------- foo
-            |     |     |
-            .     .     .
-
-        DECREMENT IN MAIN COROUTINE
-
-        end of reference parent (*parent = null)
-        end of reference child (*child = null)
-
-        decrement Parent_0 (.forks -= 1) []
-        decrement Child_0 (.forks -= 1) []
-
-        DECREMENT IN OTHER COROUTINES
-
-        Each forked coroutine will have an epilogue that decrements the objects they reference.
-        """
-        ```
-
-        In this case, the main coroutine can't release the `parent` and `child` objects
-        because they are referenced in the `foo` coroutines. Here we have to maintain a fork count to track the object's lifetime associated with each coroutine that referenced it.
-
-
-    #### NOTES ON STATIC REFERENCE TRACKING
-
-    **Creating statically-unknown number of objects dynamically**
-
-    Creating statically-unknown number of objects dynamically isn't an issue for SRT because objects are bound to statically-known names at compile-time. With the exception of temporary objects whose lifetimes are well-defined and statically determinable.
-
-    The issue of garbage collection comes into play when we are able to extend an objects lifetime beyond the declaration stack frame. This is amenable to static analysis, however, because such objects are required to be associated with statically-known names.
-
-    ```py
-    for i in range(some_number):
-        """ Creation of temporary object """
-        foo(Value())
-        """ Destruction of temporary object """
+            # Transferred deallocatables are freed at the end of the scope.
+            # It is costly to deallocate them in the middle of the function.
+            # Pretty sure Swift does it the same way in realease mode.
+            free_transferred_deallocatable :: a, c
+        }
+    }
     ```
 
-    **Pointer aliasing**
+    `free_transferred_deallocatable` deallocates what it needs to and increments the ptr.
+
+    ##### GLOBAL DEALLOCATABLE LIST
+
+    Each thread/coroutine has its own global deallocatable list.
+
+    ```
+    GLOBAL_DEALLOCATABLE_PTR -> GLOBAL_DEALLOCATABLE_LIST
+    GLOBAL_DEALLOCATABLE_LIST {
+        foo:
+            (object: ptr _, len: uint, next_deallocate: ptr _), :: d
+            (object: ptr _, len: uint, next_deallocate: ptr _), :: a
+            (object: ptr _, len: uint, next_deallocate: ptr _), :: c
+        ...
+    }
+    ```
+
+    ##### CAVEATS
+    - Inner functions cannot deallocate arguments until scope ends.
+
+        One possible solution will be to take advantage of a `free_owned_deallocatable` call and sneak a `free_transferred_deallocatable` in.
+        Also assigning to None, like `c = None`, can be used to signify that we want to have a `free_transferred_deallocatable` early in the code.
+
+    - Guarantees are broken if Raccoon code interoperates with non-Raccoon code.
+
+    - Objects shared between threads will need runtime fork-reference counting.
+
+
+    ##### HOW IT PREVENTS REFERENCE CYCLES
+
+    The compiler tracks every variable in the program. It is able to determine if two object reference each other from the variables.
+    With this information, the compiler can determine when the two objects are no longer referenced and deallocate them together.
+
+
+    #### HOW IT PREVENTS REFERENCE CYCLES
+
+    Creating statically-unknown number of objects dynamically isn't an issue for SRT because objects are bound to statically-known names at compile-time with the exception of temporary objects whose lifetimes are well-defined and statically determinable. The compiler can know when two object reference each other from their names and it can determine when the two objects are no longer referenced and deallocate them together.
+
+    ##### POINTER ALIASING
 
     Raw pointer aliasing affects all dellocation techniques. SRT, Tracing GCs, ARC, ownership semantics, etc. That is why we have references. They are an abstraction over pointers, something our GCs understand. Raw pointer misuse is a problem for any GC technique.
 
-    **Reference into a list**
+    ##### REFERENCE INTO A LIST
 
     If there is a reference to a list item, the entire list is not freed until all references to it and/or its elements are dead.
 
@@ -191,29 +144,10 @@ In Swift, variables are deallocated in their declaration stack frames or parents
     some = scores[3:7]
     ```
 
-    **Conditional deallocation**
 
-    In a situation where the compiler cannot statically determine precisely the deallocation point of an object, probably due to runtime conditions, the compiler will choose the farthest deallocation point considering every possible condition branch.
+##### REFERENCES
 
-    ```py
-    def foo():
-        string = "Hello"
+https://stackoverflow.com/questions/48986455/swift-class-de-initialized-at-end-of-scope-instead-of-after-last-usage
 
-        if some_runtime_condition:
-            return "Hi"
-        else:
-            return string
+https://forums.swift.org/t/should-swift-apply-statement-scope-for-arc/4081
 
-    greeting = foo()
-    print(greeting)
-    print(greeting)
-
-    """
-    DEALLOCATION POINT
-    ==================
-
-    > deallocate string
-
-    Dealloction of string will be at the top-level. Because it is the farthest deallocation point of all condition branches.
-    """
-    ```

@@ -1,3 +1,5 @@
+Each will be properly fleshed out as an RFC later.
+However, it will be nice to have Raccoon not diverge from Python too much
 
 ## POSSIBLE ADDITIONS
 
@@ -95,13 +97,13 @@
 - Where clause [In Progress]
 
     ```py
-    for i in 1..20 where i % 2:
+    for i in range(21) where i % 2:
         print(i)
 
     [i for i in ls where i > 5]
     ```
 
-- Type annotation & Generics [In Progress]
+- Revamped type annotation & Generics [In Progress]
 
     ```py
     # Type anotation
@@ -131,7 +133,7 @@
     Person == Person
 
     # Generics
-    class Person[T, U](A, B) where T, < Person:
+    class Person[T, U](A, B) where T < Person:
         def __init__(self, name: T):
             self.name = name
 
@@ -144,6 +146,63 @@
     jane = get_person.[str]('Jane Doe')
     ```
 
+- More operators [In Progress]
+
+    ```py
+    class Num:
+        # ...
+        def __plus__(self, other):
+            return Num(self.value + other.value)
+
+        def __sqrt__(self):
+            return Num(√(self.val))
+
+        def __square__(self):
+            return Num(self.val²)
+
+    a, b = Num(2), Num(3)
+
+    sum = a + b
+    rooted = √a
+    squared = a²
+    ```
+
+- Hygenic macro metaprogramming [In Progress]
+
+    Raccoon's decorators are macros.
+
+    ```py
+    @foo("Hello world!")
+
+    @foo "Hello world!"
+
+    @foo:
+        print("starting game")
+
+    @debug
+    def foo():
+        print("starting game")
+
+
+    @macro
+    def foo(string: string):
+        pass
+
+    @macro
+    def foo(block: block[statement]):
+        @map:
+            return $(statement ;)
+
+    @macro
+    def debug(fn: function):
+        if "debug" in @flags:
+            return fn
+    ```
+
+    When calling macros, you can omit the parentheses.
+
+    Macros cannot reference variables outside their scope. Macros cannot have loops as well.
+
 - Function declaration
     ```py
     def add(a: int, b: int) -> int
@@ -151,10 +210,28 @@
     def display(str)
     ```
 
+- Calling C
+
+    ```py
+    @extern('C')
+    def sleep(seconds: i32) -> i32
+    ```
+
+    `extern` block
+
+    ```py
+    @extern('C'):
+        def sleep(seconds: i32) -> i32
+        def echo(chars: ptr char, len: i32)
+    ```
+
+    When declaring a C function, types are required because the interface expects types
+
+
 - Type alias
 
     ```py
-    typealias IdentityFunc[T] = (T) -> T
+    alias IdentityFunc[T] = (T) -> T
     ```
 
 - Character
@@ -198,15 +275,15 @@
     codepoint = ord(ch?)
     ```
 
-- Algebraic data types
+- Revamped enums (ADTs)
 
     ```py
-    enum Option{T}:
+    enum Option[T]:
         Ok(value: T)
         Err()
         None
 
-    identity: Option{str} = Option.None
+    identity: Option[str] = Option.None
 
     match identity:
         case Option.Some(value): value
@@ -280,7 +357,9 @@
     f32, f64
     ```
 
-- Pattern matching.
+- Match statement
+
+    Does exhaustiveness checks.
 
     ```py
     match x:
@@ -305,7 +384,7 @@
 - Cast function
 
     ```py
-    animals = [Cat(), Dog()]
+    animals = [Cat(), Dog(), ...]
 
     """
     ERROR
@@ -333,51 +412,17 @@
     add(1, 2, 3)
     ```
 
-- Hygenic macro
-    ```py
-    @macro
-    def debug(f: function):
-        def wrapper(*args):
-            if "debug" in @features():
-                f(*args)
-
-        return wrapper
-
-    @macro
-    def do_twice(exp: binary_op):
-        return (
-            lambda x:
-                exp; exp
-        )()
-
-    @macro
-    def classes(*tup: symbol):
-        new_classes = ()
-
-        @map(tup, item, out=new_classes) # A special compiler decorator
-        class item:
-            def __init__(self, name):
-                self.name = name
-
-        return new_classes
-    ```
-
-    Examples
-    ```py
-    @debug
-    def println(*args):
-        print(*args)
-
-    @do_twice(a += 5)
-
-    @classes(Person, Animal)
-    ```
-
 - Abritary precision integer and float literal
 
     ```py
     integer: BigInt = b`123457890123456789012345678901234567890
     floating: BigFloat = b`123457890123456.789012345678901234e-567890
+    ```
+
+- Symbols
+
+    ```py
+    sym: Symbol = s"Hello"
     ```
 
 - Hexadecimal, binary and octal floating point literal
@@ -394,41 +439,11 @@
     ```py
     result = apply.(array, double)
     result = apply.[int].(array, double)
-    reuslt = A .* B
-    ```
-
-- More operators
-
-    ```py
-    class Num:
-        # ...
-        def __plus__(self, other):
-            return Num(self.value + other.value)
-
-        def __sqrt__(self):
-            return Num(√(self.val))
-
-        def __square__(self):
-            return Num(self.val²)
-
-    a, b = Num(2), Num(3)
-
-    sum = a + b
-    rooted = √a
-    squared = a²
-    ```
-
-- Range syntax
-
-    ```py
-    range1 = (0..11) # Range object
-    range2 = (0:2:11) # Range object
-
-    range3 = list((1:10))
-    range3 = set((1:10))
+    result = A .* B
     ```
 
 - Underscore meaning discarded value or unprovided value
+
     ```py
     for _ in (1:11):
         print("Hello")
@@ -441,13 +456,37 @@
     f = add(2, _)
     ```
 
-- Private members
-    ```py
-    def _foo():
-        pass
+- Revamped abstract classes
 
-    class _Person:
+    ```py
+    abstract class Observable:
+        abstract def notify()
+        abstract def add_subscription(sub: Subcription)
+    ```
+
+- Inline Assembly
+
+    ```py
+    @asm(arch="x86", syntax="intel"):
+        """
+        mov eax, [ebx]      ; Move the 4 bytes in memory at the address contained in EBX into EAX
+        mov [var], ebx      ; Move the contents of EBX into the 4 bytes at memory address var. (Note, var is a 32-bit constant).
+        mov eax, [esi-4]	; Move 4 bytes at memory address ESI + (-4) into EAX
+        mov [esi+eax], cl	; Move the contents of CL into the byte at address ESI+EAX
+        mov edx, [esi+4*ebx]
+        """
+    ```
+
+- Struct
+
+    Struct are stored on the stack. list is a struct even there is no support for struct for now.
+
+    ```py
+    struct Person:
         def __init__(self, name, age):
-            self._name = name
-            self._age = age
+            self.name = name
+            self.age = age
+
+    john = Person("John", 58)
+    print(john.name)
     ```
