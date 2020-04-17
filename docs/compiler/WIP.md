@@ -2,11 +2,9 @@
 
 - ASPECTS
 
-    ### THE BIG WALK
+    ### THE MAIN SEMANTIC VISITOR
 
-    The Big Walk is a single pass on the AST that gather informatation about the program to be later used.
-
-    The Big Walk does not use a visitor pattern, it uses a cache and a loop instead.
+    The main semantic visitor is a visitor that walks the AST in a single pass and gathers informatation about the program to be later used.
 
     - SYMBOL TABLE
 
@@ -110,13 +108,15 @@
     TODO: To be documented properly
 
     ```
-    discard_cache
+    token_extraction_visitor
 
-    get_relevant_tokens
+        get_referenced_tokens
 
-    discard_tokens
+        reset_parser
 
-    do_the_big_walk
+    main_semantic_visitor
+
+        canonicalize_literal
 
         create_symbol_table
 
@@ -129,32 +129,32 @@
             check_cyclic_dependency
 
         create_function_frame
-            unionize
+            unionize_var_types
                 type_check_if_statement
                 type_check_while_statement
                 type_check_for_statement
                 type_check_comprehension
 
         create_type_frame
+            resolve_diamond_problem
 
         declare_function_instance
-            check_argument_position
-            check_argument_type_restriction
+            check_argument_position_and_types
 
         declare_type_instance
 
-        normalize_types
+        track_lifetimes
 
-        track_lifetime
+    instantiation_visitor
 
-    instantiate_function_declaration
-        check_method_exist
+        instantiate_function_declaration
+            check_method_exist
 
-    instantiate_type_declaration
+        instantiate_type_declaration
 
-    create_function_impl_frame # LIB
+        create_function_impl_frame # LIB
 
-    create_type_impl_frame # LIB
+        create_type_impl_frame # LIB
 
     lower_ast
 
@@ -167,31 +167,12 @@
 - WIP CODE
 
     ```py
+    visitation
+    symbol_table = {
 
-    def reset(self):
-        """
-        Frees resources like cache and tokens and reset fields.
-        """
+    }
 
-        self.tokens = []
-        self.tokens_length = len(tokens)
-        self.cursor = -1
-        self.row = 0
-        self.column = -1
-        self.cache = {}
-        self.combinator_data = {}
-        self.revert_data = (self.cursor, *self.get_line_info())
-
-        return (ast, tokens)
-
-    def get_tokens_from_code(self, code):
-        """
-        Tokenizes code and stores the generated tokens.
-        """
-
-        from ..lexer.lexer import Lexer
-
-        self.tokens = Lexer(code).lex()
+    scope
     ```
 
     ```py

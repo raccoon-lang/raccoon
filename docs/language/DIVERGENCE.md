@@ -146,6 +146,10 @@
         """
         ```
 
+- Magic methods
+
+    - Raccoon does not support `__new__` method since classes are statically created.
+
 - Imports
 
     - Raccoon resolves imported modules at compile-time
@@ -174,7 +178,7 @@
         """
         ERROR
 
-        module.another.print() # 
+        module.another.print() #
         """
         ```
 

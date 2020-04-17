@@ -16,12 +16,13 @@ from argument_handler import ArgumentHandler
 )
 @click.option("--ast", is_flag=True, help="Output Raccoon AST")
 @click.option("--tokens", is_flag=True, help="Output Raccoon lexed tokens")
+@click.option("--sema", is_flag=True, help="Output Raccoon sematic analysis phase")
 @click.argument(
     "program_file", nargs=1, required=False, type=click.Path(), metavar="[program file]"
 )
-def app(version, program_file, compile_string, ast, tokens):
+def app(version, program_file, compile_string, ast, tokens, sema):
     """
-    Raccoon.py samples/test.co --ast
+    raccoon.py samples/test.co --ast
     """
     ctx = click.get_current_context()
 

@@ -109,6 +109,12 @@ However, it will be nice to have Raccoon not diverge from Python too much
     # Type anotation
     index: int = 9
 
+    """
+    ERROR
+
+    index: int  # variable needs to be initialized.
+    """
+
     # Type argument
     nums: list[int] = []
 
@@ -237,14 +243,14 @@ However, it will be nice to have Raccoon not diverge from Python too much
 - Character
 
     ```py
-    ch0 = `a
-    ch1 = `\n
-    ch2 = `\uff
-    ch3 = `\890
+    ch0 = c'a'
+    ch1 = c'\n'
+    ch2 = c'\uff'
+    ch3 = c'\890'
 
     string = ch0 + ch1
 
-    if `a <= ch <= `z:
+    if c'a' <= ch <= c'z':
         print(ch)
     ```
 
@@ -258,7 +264,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
 
     ```py
     def get_optional() -> char?:
-
+        return c'name' if cond else None
 
     if identity := get_optional():
         print(identity)
@@ -287,7 +293,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
 
     match identity:
         case Option.Some(value): value
-        case Option.Err(): raise Error()
+        case Option.Err(): raise Exception()
         case _: pass
 
     identity: int | str = 'XNY7V40'
@@ -415,14 +421,14 @@ However, it will be nice to have Raccoon not diverge from Python too much
 - Abritary precision integer and float literal
 
     ```py
-    integer: BigInt = b`123457890123456789012345678901234567890
-    floating: BigFloat = b`123457890123456.789012345678901234e-567890
+    integer: BigInt = b.123457890123456789012345678901234567890
+    floating: BigFloat = b.123457890123456.789012345678901234e-567890
     ```
 
 - Symbols
 
     ```py
-    sym: Symbol = s"Hello"
+    sym: Symbol = s'Hello'
     ```
 
 - Hexadecimal, binary and octal floating point literal
@@ -460,6 +466,8 @@ However, it will be nice to have Raccoon not diverge from Python too much
 
     ```py
     abstract class Observable:
+        abstract subscriptions: [Subscription]
+
         abstract def notify()
         abstract def add_subscription(sub: Subcription)
     ```
@@ -471,15 +479,15 @@ However, it will be nice to have Raccoon not diverge from Python too much
         """
         mov eax, [ebx]      ; Move the 4 bytes in memory at the address contained in EBX into EAX
         mov [var], ebx      ; Move the contents of EBX into the 4 bytes at memory address var. (Note, var is a 32-bit constant).
-        mov eax, [esi-4]	; Move 4 bytes at memory address ESI + (-4) into EAX
-        mov [esi+eax], cl	; Move the contents of CL into the byte at address ESI+EAX
+        mov eax, [esi-4]    ; Move 4 bytes at memory address ESI + (-4) into EAX
+        mov [esi+eax], cl   ; Move the contents of CL into the byte at address ESI+EAX
         mov edx, [esi+4*ebx]
         """
     ```
 
 - Struct
 
-    Struct are stored on the stack. list is a struct even there is no support for struct for now.
+    Struct objects are saved on the stack.
 
     ```py
     struct Person:

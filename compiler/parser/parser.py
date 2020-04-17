@@ -77,7 +77,6 @@ from .ast import (
     Globals,
     NonLocals,
     AssertStatement,
-    DelStatement,
     PassStatement,
     BreakStatement,
     ContinueStatement,
@@ -87,7 +86,8 @@ from .ast import (
     MainPath,
     SubPath,
     ImportStatement,
-    Decorator
+    Decorator,
+    Program,
 )
 
 
@@ -147,6 +147,29 @@ class Parser:
         tokens = Lexer(code).lex()
 
         return Parser(tokens)
+
+    def get_tokens_from_code(self, code):
+        """
+        Tokenizes code and stores the generated tokens.
+        """
+
+        from ..lexer.lexer import Lexer
+
+        self.tokens = Lexer(code).lex()
+
+    def reset(self):
+        """
+        Frees resources like cache and tokens and reset fields.
+        """
+
+        self.tokens = []
+        self.tokens_length = 0
+        self.cursor = -1
+        self.row = 0
+        self.column = -1
+        self.cache = {}
+        self.combinator_data = {}
+        self.revert_data = (self.cursor, *self.get_line_info())
 
     def get_line_info(self):
         return self.row, self.column
@@ -416,10 +439,10 @@ class Parser:
             return None
 
         self.register_revert()
-        if (self.revertable(
+        if self.revertable(
             (power := self.consume_string("^")) is not None
             and (unary_expr := self.integer()) is not None
-        )):
+        ):
             result = BinaryExpr(result, Operator(power), unary_expr)
         elif (square := self.consume_string("²")) is not None:
             result = UnaryExpr(result, Operator(square))
@@ -581,7 +604,7 @@ class Parser:
         result = self.comparison_expr()
 
         while True:
-            if self.consume_string("not") is None:
+            if (not_op := self.consume_string("not")) is None:
                 break
 
             result = UnaryExpr(result, Operator(not_op))
@@ -636,7 +659,7 @@ class Parser:
         if (
             (identifier := self.identifier()) is not None
             and self.consume_string(":=") is not None
-            and(test := self.test()) is not None
+            and (test := self.test()) is not None
         ):
             return NamedExpression(identifier, test)
 
@@ -657,10 +680,9 @@ class Parser:
         result = FuncParam(identifier)
 
         self.register_revert()
-        if (self.revertable(
-            self.consume_string("=") is not None
-            and (expr := self.expr()) is not None
-        )):
+        if self.revertable(
+            self.consume_string("=") is not None and (expr := self.expr()) is not None
+        ):
             result.default_value_expr = expr
 
         return result
@@ -693,51 +715,51 @@ class Parser:
             params = [param]
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (param := self.lambda_param()) is not None
-            )):
+            ):
                 params.append(param)
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("/") is not None
-            )):
+            ):
                 params.append(PositionalParamsSeparator())
 
                 self.register_revert()
-                while (self.revertable(
+                while self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.lambda_param()) is not None
-                )):
+                ):
                     params.append(param)
 
-            tuple_rest_param = None
+            tuple_rest_param = Null()
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("*") is not None
                 and (param := self.lambda_param()) is not None
-            )):
+            ):
                 tuple_rest_param = param
 
             keyword_only_params = []
             if tuple_rest_param:
                 self.register_revert()
-                while (self.revertable(
+                while self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.lambda_param()) is not None
-                )):
+                ):
                     keyword_only_params.append(param)
 
-            named_tuple_rest_param = None
+            named_tuple_rest_param = Null()
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("**") is not None
                 and (param := self.lambda_param()) is not None
-            )):
+            ):
                 named_tuple_rest_param = param
 
             return FuncParams(
@@ -750,26 +772,26 @@ class Parser:
             self.consume_string("*") is not None
             and (tuple_rest_param := self.lambda_param()) is not None
         ):
-            named_tuple_params = []
+            keyword_only_params = []
             if tuple_rest_param:
                 self.register_revert()
-                while (self.revertable(
+                while self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.lambda_param()) is not None
-                )):
-                    named_tuple_params.append(param)
+                ):
+                    keyword_only_params.append(param)
 
-            named_tuple_rest_param = None
+            named_tuple_rest_param = Null()
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("**") is not None
                 and (param := self.lambda_param()) is not None
-            )):
+            ):
                 named_tuple_rest_param = param
 
             return FuncParams(
-                None, tuple_rest_param, named_tuple_params, named_tuple_rest_param
+                [], tuple_rest_param, keyword_only_params, named_tuple_rest_param
             )
 
         # FOURTH ALTERNATIVE
@@ -778,7 +800,7 @@ class Parser:
             self.consume_string("**") is not None
             and (named_tuple_rest_param := self.lambda_param()) is not None
         ):
-            return FuncParams(None, None, None, named_tuple_rest_param)
+            return FuncParams([], Null(), [], named_tuple_rest_param)
 
         return None
 
@@ -790,13 +812,13 @@ class Parser:
         """
 
         if self.consume_string("lambda") is not None:
-            params = params if (params := self.lambda_params()) else []
+            params = params if (params := self.lambda_params()) else Null()
 
             if (
                 self.consume_string(":") is not None
                 and (expr := self.expr()) is not None
             ):
-                return Function(None, [expr], params)
+                return Function(Null(), [expr], params)
 
         return None
 
@@ -828,10 +850,9 @@ class Parser:
         exprs = [result]
 
         self.register_revert()
-        while (self.revertable(
-            self.consume_string(",") is not None
-            and (expr := self.expr()) is not None
-        )):
+        while self.revertable(
+            self.consume_string(",") is not None and (expr := self.expr()) is not None
+        ):
             exprs.append(expr)
 
         self.consume_string(",")
@@ -879,10 +900,10 @@ class Parser:
         exprs = [result]
 
         self.register_revert()
-        while (self.revertable(
+        while self.revertable(
             self.consume_string(",") is not None
             and (rest_expr := self.rest_expr()) is not None
-        )):
+        ):
             exprs.append(rest_expr)
 
         self.consume_string(",")
@@ -897,12 +918,9 @@ class Parser:
         """
 
         if self.consume_string("lambda") is not None:
-            params = params if (params := self.lambda_params()) else []
+            params = params if (params := self.lambda_params()) else Null()
 
-            if (
-                self.consume_string(":") is not None
-                and self.indent() is not None
-            ):
+            if self.consume_string(":") is not None and self.indent() is not None:
                 statements = []
                 while (statement := self.statements()) is not None:
                     statements.append(statement)
@@ -910,7 +928,7 @@ class Parser:
                 # There should be at least an expression.
                 # TODO: Raise error if block has dedent but no expression.
                 if self.dedent() is not None and len(expr) > 0:
-                    return Function(None, statements, params)
+                    return Function(Null(), statements, params)
 
         return None
 
@@ -944,10 +962,10 @@ class Parser:
         exprs = [result]
 
         self.register_revert()
-        while (self.revertable(
+        while self.revertable(
             self.consume_string(",") is not None
             and (indentable_expr := self.indentable_expr()) is not None
-        )):
+        ):
             exprs.append(indentable_expr)
 
         self.consume_string(",")
@@ -995,10 +1013,10 @@ class Parser:
         exprs = [result]
 
         self.register_revert()
-        while (self.revertable(
+        while self.revertable(
             self.consume_string(",") is not None
             and (rest_expr := self.rest_indentable_expr()) is not None
-        )):
+        ):
             exprs.append(rest_expr)
 
         self.consume_string(",")
@@ -1055,7 +1073,7 @@ class Parser:
         ):
             result = Comprehension(None, var_expr, iterable_expr)
 
-            if (comprehension_where := self.comprehension_where()):
+            if (comprehension_where := self.comprehension_where()) :
                 result.where_expr = comprehension_where
 
         return result
@@ -1217,15 +1235,15 @@ class Parser:
             key_value_pairs = [(test, expr_suite)]
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (test := self.test()) is not None
                 and self.consume_string(":") is not None
                 and (expr_suite := self.expr_suite()) is not None
-            )):
+            ):
                 key_value_pairs.append((test, expr_suite))
 
-            self.consume_string(',')
+            self.consume_string(",")
 
             return Dict(key_value_pairs)
 
@@ -1250,20 +1268,20 @@ class Parser:
 
         cursor, row, column = self.cursor, *self.get_line_info()
 
-        from_expr = self.test()
+        from_expr = self.test() or Null()
 
         # FIRST ALTERNATIVE
         if self.consume_string(":") is not None:
             skip_expr = self.test()  # Can either be a skip_expr or to_expr
-            to_expr = None
+            to_expr = Null()
             second_colon = None
 
             if (second_colon := self.consume_string(":")) is not None:
-                to_expr = self.test()
+                to_expr = self.test() or Null()
 
-            if to_expr is None and skip_expr is not None and second_colon is None:
+            if to_expr == Null() and skip_expr == Null() and second_colon is None:
                 to_expr = skip_expr
-                skip_expr = None
+                skip_expr = Null()
 
             return SubscriptIndex(from_expr, skip_expr, to_expr)
 
@@ -1289,10 +1307,10 @@ class Parser:
         result = [result]
 
         self.register_revert()
-        while (self.revertable(
+        while self.revertable(
             self.consume_string(",") is not None
             and (subscript_index := self.subscript_index()) is not None
-        )):
+        ):
             result.append(subscript_index)
 
         self.consume_string(",")
@@ -1317,7 +1335,6 @@ class Parser:
             return string
 
         return None
-
 
     @backtrackable
     @memoize
@@ -1361,10 +1378,9 @@ class Parser:
         # SECOND ALTERNATIVE
         self.revert(cursor, row, column)
         if self.consume_string("(") is not None:
-            if (
-                (yield_expr := self.yield_expr()) is not None
-                and self.consume_string(")") is not None
-            ):
+            if (yield_expr := self.yield_expr()) is not None and self.consume_string(
+                ")"
+            ) is not None:
                 return yield_expr
 
         # THIRD ALTERNATIVE
@@ -1388,7 +1404,6 @@ class Parser:
                 # Check if this can be an empty list
                 return List(expr) if expr is not None else List()
 
-
         # FIFTH ALTERNATIVE
         if (float_ := self.float()) is not None:
             return float_
@@ -1400,7 +1415,7 @@ class Parser:
         # SEVENTH ALTERNATIVE
         if (string := self.all_string()) is not None:
             string_list = [string]
-            while(more_string := self.string()) is not None:
+            while (more_string := self.string()) is not None:
                 string_list.append(more_string)
 
             return StringList(string_list) if len(string_list) > 1 else string
@@ -1466,10 +1481,10 @@ class Parser:
         result = [result]
 
         self.register_revert()
-        while (self.revertable(
+        while self.revertable(
             self.consume_string(",") is not None
             and (argument := self.argument()) is not None
-        )):
+        ):
             result.append(argument)
 
         self.consume_string(",")
@@ -1547,10 +1562,10 @@ class Parser:
             identifier = None
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string("as") is not None
                 and (identifier := self.identifier()) is not None
-            )):
+            ):
                 identifier = identifier
 
             return WithArgument(expr, identifier)
@@ -1571,10 +1586,10 @@ class Parser:
             arguments = [with_item]
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and (argument := self.with_item()) is not None
-            )):
+            ):
                 arguments.append(argument)
 
             self.consume_string(",")
@@ -1583,7 +1598,7 @@ class Parser:
                 self.consume_string(":") is not None
                 and (body := self.func_suite()) is not None
             ):
-                return With(arguments, body)
+                return WithStatement(arguments, body)
 
         return None
 
@@ -1617,10 +1632,10 @@ class Parser:
             alias = None
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string("as") is not None
                 and (alias := self.identifier()) is not None
-            )):
+            ):
                 alias = identifier
 
             if (
@@ -1665,13 +1680,13 @@ class Parser:
                 while (except_clause := self.except_clause()) is not None:
                     except_clauses.append(except_clause)
 
-                else_body = self.else_clause()
-                finally_body = self.finally_clause()
+                else_body = self.else_clause() or []
+                finally_body = self.finally_clause() or []
 
-                return TryExcept(try_body, except_clauses, else_body, finally_body)
+                return TryStatement(try_body, except_clauses, else_body, finally_body)
 
             if (finally_body := self.finally_clause()) is not None:
-                return TryExcept(try_body, finally_body=finally_body)
+                return TryStatement(try_body, finally_body=finally_body)
 
         return None
 
@@ -1704,13 +1719,13 @@ class Parser:
             and self.consume_string("in") is not None
             and (iterable_expr := self.exprs()) is not None
         ):
-            where_clause = self.where_clause()
+            where_clause = self.where_clause() or Null()
 
             if (
                 self.consume_string(":") is not None
                 and (body := self.func_suite()) is not None
             ):
-                else_body = self.else_clause()
+                else_body = self.else_clause() or []
                 return ForStatement(lhs, iterable_expr, body, else_body, where_clause)
 
         return None
@@ -1726,13 +1741,13 @@ class Parser:
             self.consume_string("while") is not None
             and (cond_expr := self.named_expr_or_test()) is not None
         ):
-            where_clause = self.where_clause()
+            where_clause = self.where_clause() or Null()
 
             if (
                 self.consume_string(":") is not None
                 and (body := self.func_suite()) is not None
             ):
-                else_body = self.else_clause()
+                else_body = self.else_clause() or []
                 return WhileStatement(cond_expr, body, else_body, where_clause)
 
         return None
@@ -1772,9 +1787,9 @@ class Parser:
             while (elif_clause := self.elif_clause()) is not None:
                 elif_clauses.append(elif_clause)
 
-            else_clause = self.else_clause()
+            else_body = self.else_clause() or []
 
-            return IfStatement(cond_expr, body, elif_clauses, else_clause)
+            return IfStatement(cond_expr, body, elif_clauses, else_body)
 
         return None
 
@@ -1790,22 +1805,21 @@ class Parser:
             and self.consume_string("[") is not None
             and (sepcialization_type := self.type_annotation()) is not None
         ):
-            sepcialization_types = [sepcialization_type]
+            specialization_types = [sepcialization_type]
 
             self.register_revert()
-            while(self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (sepcialization_type := self.type_annotation()) is not None
-            )):
-                sepcialization_types.append(sepcialization_type)
+            ):
+                specialization_types.append(sepcialization_type)
 
             self.consume_string(",")
 
             if self.consume_string("]") is not None:
-                return GenericType(generic_type, sepcialization_types)
+                return GenericType(generic_type, specialization_types)
 
         return None
-
 
     @backtrackable
     @memoize
@@ -1823,10 +1837,10 @@ class Parser:
             param_types = [param_type]
 
             self.register_revert()
-            while(self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (param_type := self.type_annotation()) is not None
-            )):
+            ):
                 param_types.append(param_type)
 
             self.consume_string(",")
@@ -1847,7 +1861,6 @@ class Parser:
         ):
             return FunctionType(return_type)
 
-
         return None
 
     @backtrackable
@@ -1864,10 +1877,10 @@ class Parser:
             types = [type_]
 
             self.register_revert()
-            while(self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (type_ := self.type_annotation()) is not None
-            )):
+            ):
                 types.append(type_)
 
             self.consume_string(",")
@@ -1891,10 +1904,10 @@ class Parser:
             types = [type_]
 
             self.register_revert()
-            while(self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (type_ := self.type_annotation()) is not None
-            )):
+            ):
                 types.append(type_)
 
             self.consume_string(",")
@@ -1903,7 +1916,6 @@ class Parser:
                 return TupleType(types)
 
         return None
-
 
     @backtrackable
     @memoize
@@ -1916,10 +1928,10 @@ class Parser:
             types = [first_type]
 
             self.register_revert()
-            while(self.revertable(
+            while self.revertable(
                 self.consume_string("&") is not None
                 and (type_ := self.atom_type()) is not None
-            )):
+            ):
                 types.append(type_)
 
             return IntersectionType(types) if len(types) > 1 else first_type
@@ -1937,10 +1949,10 @@ class Parser:
             types = [first_type]
 
             self.register_revert()
-            while(self.revertable(
+            while self.revertable(
                 self.consume_string("|") is not None
                 and (type_ := self.intersection_type()) is not None
-            )):
+            ):
                 types.append(type_)
 
             return UnionType(types) if len(types) > 1 else first_type
@@ -1999,10 +2011,10 @@ class Parser:
         result = [result]
 
         self.register_revert()
-        while (self.revertable(
+        while self.revertable(
             self.consume_string(",") is not None
             and (identifier := self.identifier()) is not None
-        )):
+        ):
             result.append(identifier)
 
         self.consume_string(",")
@@ -2088,15 +2100,15 @@ class Parser:
             self.consume_string("class") is not None
             and (name := self.identifier()) is not None
         ):
-            generics_annotation = self.generics_annotation()
-            parent_classes = None
+            generics_annotation = self.generics_annotation() or Null()
+            parent_classes = []
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string("(") is not None
                 and (parent_classes := self.identifiers()) is not None
                 and self.consume_string(")") is not None
-            )):
+            ):
                 parent_classes = parent_classes
 
             if (
@@ -2106,7 +2118,6 @@ class Parser:
                 return Class(name, body, parent_classes, generics_annotation)
 
         return None
-
 
     @backtrackable
     @memoize
@@ -2170,10 +2181,10 @@ class Parser:
         result = [result]
 
         self.register_revert()
-        while (self.revertable(
+        while self.revertable(
             self.consume_string(",") is not None
             and (lhs_argument := self.lhs_argument()) is not None
-        )):
+        ):
             result.append(lhs_argument)
 
         self.consume_string(",")
@@ -2212,7 +2223,9 @@ class Parser:
         # THIRD ALTERNATIVE
         self.revert(cursor, row, column)
         if (lhs_arguments := self.lhs_arguments()) is not None:
-            return TupleLHS(lhs_arguments) if len(lhs_arguments) > 1 else lhs_arguments[0]
+            return (
+                TupleLHS(lhs_arguments) if len(lhs_arguments) > 1 else lhs_arguments[0]
+            )
 
         return None
 
@@ -2260,21 +2273,21 @@ class Parser:
         """
 
         if (name := self.identifier()) is not None:
-            type_annotation = None
-            default_value_expr = None
+            type_annotation = Null()
+            default_value_expr = Null()
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(":") is not None
                 and (type_annotation := self.type_annotation()) is not None
-            )):
+            ):
                 type_annotation = type_annotation
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string("=") is not None
                 and (default_value_expr := self.indentable_expr()) is not None
-            )):
+            ):
                 default_value_expr = default_value_expr
 
             return FuncParam(name, type_annotation, default_value_expr)
@@ -2298,51 +2311,51 @@ class Parser:
             params = [param]
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (param := self.func_param()) is not None
-            )):
+            ):
                 params.append(param)
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("/") is not None
-            )):
+            ):
                 params.append(PositionalParamsSeparator())
 
                 self.register_revert()
-                while (self.revertable(
+                while self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.func_param()) is not None
-                )):
+                ):
                     params.append(param)
 
-            tuple_rest_param = None
+            tuple_rest_param = Null()
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("*") is not None
                 and (param := self.func_param()) is not None
-            )):
+            ):
                 tuple_rest_param = param
 
             keyword_only_params = []
             if tuple_rest_param:
                 self.register_revert()
-                while (self.revertable(
+                while self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.func_param()) is not None
-                )):
+                ):
                     keyword_only_params.append(param)
 
-            named_tuple_rest_param = None
+            named_tuple_rest_param = Null()
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("**") is not None
                 and (param := self.func_param()) is not None
-            )):
+            ):
                 named_tuple_rest_param = param
 
             return FuncParams(
@@ -2355,26 +2368,26 @@ class Parser:
             self.consume_string("*") is not None
             and (tuple_rest_param := self.func_param()) is not None
         ):
-            named_tuple_params = []
+            keyword_only_params = []
             if tuple_rest_param:
                 self.register_revert()
-                while (self.revertable(
+                while self.revertable(
                     self.consume_string(",") is not None
                     and (param := self.func_param()) is not None
-                )):
-                    named_tuple_params.append(param)
+                ):
+                    keyword_only_params.append(param)
 
-            named_tuple_rest_param = None
+            named_tuple_rest_param = Null()
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and self.consume_string("**") is not None
                 and (param := self.func_param()) is not None
-            )):
+            ):
                 named_tuple_rest_param = param
 
             return FuncParams(
-                None, tuple_rest_param, named_tuple_params, named_tuple_rest_param
+                [], tuple_rest_param, keyword_only_params, named_tuple_rest_param
             )
 
         # THIRD ALTERNATIVE
@@ -2383,7 +2396,7 @@ class Parser:
             self.consume_string("**") is not None
             and (named_tuple_rest_param := self.func_param()) is not None
         ):
-            return FuncParams(None, None, None, named_tuple_rest_param)
+            return FuncParams([], Null(), [], named_tuple_rest_param)
 
         return None
 
@@ -2421,30 +2434,31 @@ class Parser:
             self.consume_string("def") is not None
             and (name := self.identifier()) is not None
         ):
-            generics_annotation = self.generics_annotation()
-            return_type_annotation = None
-
+            generics_annotation = self.generics_annotation() or Null()
+            return_type_annotation = Null()
 
             if self.consume_string("(") is None:
                 return None
 
-            func_params = self.func_params() or []
+            func_params = self.func_params() or Null()
 
             if self.consume_string(")") is None:
                 return None
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string("->") is not None
                 and (return_type_annotation := self.type_annotation()) is not None
-            )):
+            ):
                 return_type_annotation = return_type_annotation
 
             if (
                 self.consume_string(":") is not None
                 and (body := self.func_suite()) is not None
             ):
-                return Function(name, body, func_params, return_type_annotation, generics_annotation)
+                return Function(
+                    name, body, func_params, return_type_annotation, generics_annotation
+                )
 
         return None
 
@@ -2455,13 +2469,10 @@ class Parser:
         rule = 'async' (func_def | with_statement | for_statement)
         """
 
-        if (
-            self.consume_string("async") is not None
-            and (
-               (statement := self.func_def()) is not None
-               or (statement := self.with_statement()) is not None
-               or (statement := self.for_statement()) is not None
-            )
+        if self.consume_string("async") is not None and (
+            (statement := self.func_def()) is not None
+            or (statement := self.with_statement()) is not None
+            or (statement := self.for_statement()) is not None
         ):
             statement.is_async = True
             return statement
@@ -2481,10 +2492,10 @@ class Parser:
         ):
             names = [name]
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (name := self.identifier()) is not None
-            )):
+            ):
                 names.append(name)
 
             return Globals(names)
@@ -2504,10 +2515,10 @@ class Parser:
         ):
             names = [name]
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (name := self.identifier()) is not None
-            )):
+            ):
                 names.append(name)
 
             return NonLocals(names)
@@ -2525,18 +2536,16 @@ class Parser:
             self.consume_string("assert") is not None
             and (cond_expr := self.expr()) is not None
         ):
-            message_expr = None
+            message_expr = Null()
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string(",") is not None
                 and (message_expr := self.expr()) is not None
-            )):
+            ):
                 message_expr = message_expr
 
-            return DelStatement(cond_expr, message_expr)
-
-
+            return AssertStatement(cond_expr, message_expr)
 
         return None
 
@@ -2552,7 +2561,6 @@ class Parser:
 
         return None
 
-
     @backtrackable
     @memoize
     def break_statement(self):
@@ -2565,7 +2573,6 @@ class Parser:
 
         return None
 
-
     @backtrackable
     @memoize
     def continue_statement(self):
@@ -2577,7 +2584,6 @@ class Parser:
             return ContinueStatement()
 
         return None
-
 
     @backtrackable
     @memoize
@@ -2592,7 +2598,6 @@ class Parser:
 
         return None
 
-
     @backtrackable
     @memoize
     def raise_statement(self):
@@ -2601,21 +2606,20 @@ class Parser:
         """
 
         if self.consume_string("raise") is not None:
-            expr = None
-            from_expr = None
+            expr = Null()
+            from_expr = Null()
 
-            if (expr := self.expr()):
+            if (expr := self.expr()) :
                 self.register_revert()
-                if (self.revertable(
+                if self.revertable(
                     self.consume_string("from") is not None
                     and (from_expr := self.expr()) is not None
-                )):
+                ):
                     from_expr = from_expr
 
             return RaiseStatement(expr, from_expr)
 
         return None
-
 
     @backtrackable
     @memoize
@@ -2696,10 +2700,10 @@ class Parser:
             op = None
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 (op := self.consume_string("=")) is not None
                 and (value_expr := self.rest_indentable_expr()) is not None
-            )):
+            ):
                 value_expr = value_expr
 
             return AssignmentStatement([], Operator(op), value_expr, type_annotation)
@@ -2719,25 +2723,20 @@ class Parser:
         cursor, row, column = self.cursor, *self.get_line_info()
 
         # FIRST ALTERNATIVE
-        if (
-            (lhs := self.lhs()) is not None
-            and (assignment := self.assignment_annotation()) is not None
-        ):
+        if (lhs := self.lhs()) is not None and (
+            assignment := self.assignment_annotation()
+        ) is not None:
             assignment.lhses.append(lhs)
             return assignment
 
         # SECOND ALTERNATIVE
         self.revert(cursor, row, column)
-        if (
-            (lhs := self.lhs()) is not None
-            and (op := self.assignment_op()) is not None
-        ):
+        if (lhs := self.lhs()) is not None and (op := self.assignment_op()) is not None:
             if (value_expr := self.yield_expr()) is not None:
                 return AssignmentStatement([lhs], op, value_expr)
 
             if (value_expr := self.rest_indentable_exprs()) is not None:
                 return AssignmentStatement([lhs], op, value_expr)
-
 
         # THIRD ALTERNATIVE
         self.revert(cursor, row, column)
@@ -2745,29 +2744,25 @@ class Parser:
             lhses = [lhs]
 
             self.register_revert()
-            while (self.revertable(
-                self.consume_string(",") is not None
-                and (lhs := self.lhs()) is not None
-            )):
+            while self.revertable(
+                self.consume_string(",") is not None and (lhs := self.lhs()) is not None
+            ):
                 lhses.append(lhs)
 
             if len(lhses) > 1:
-                if (
-                    (op := self.assignment_op()) is not None
-                    and (value_expr := self.yield_expr()) is not None
-                ):
+                if (op := self.assignment_op()) is not None and (
+                    value_expr := self.yield_expr()
+                ) is not None:
                     return AssignmentStatement(lhses, op, value_expr)
 
-                if (
-                    (op := self.assignment_op()) is not None
-                    and (value_expr := self.rest_indentable_exprs()) is not None
-                ):
+                if (op := self.assignment_op()) is not None and (
+                    value_expr := self.rest_indentable_exprs()
+                ) is not None:
                     return AssignmentStatement(lhses, op, value_expr)
 
             return assignment
 
         return None
-
 
     @backtrackable
     @memoize
@@ -2780,10 +2775,10 @@ class Parser:
             names = [name]
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(".") is not None
                 and (name := self.identifier()) is not None
-            )):
+            ):
                 names.append(name)
 
             return names
@@ -2801,10 +2796,10 @@ class Parser:
             alias = None
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string("as") is not None
                 and (alias := self.identifier()) is not None
-            )):
+            ):
                 alias = alias
 
             return SubPath([name], alias)
@@ -2822,10 +2817,10 @@ class Parser:
             sub_paths = [sub_path]
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(",") is not None
                 and (sub_path := self.import_sub_path_with_alias()) is not None
-            )):
+            ):
                 sub_paths.append(sub_path)
 
             self.consume_string(",")
@@ -2907,10 +2902,10 @@ class Parser:
             alias = None
 
             self.register_revert()
-            if (self.revertable(
+            if self.revertable(
                 self.consume_string("as") is not None
                 and (alias := self.identifier()) is not None
-            )):
+            ):
                 path.alias = alias
 
             return path
@@ -2928,7 +2923,7 @@ class Parser:
             self.consume_string("import") is not None
             and (path := self.import_main_path_with_alias()) is not None
         ):
-            return ImportStatement(path, None)
+            return ImportStatement(path, [])
 
         return None
 
@@ -2957,10 +2952,9 @@ class Parser:
             | import_from
         """
 
-        if (
-            (statement := self.import_main()) is not None
-            or (statement := self.import_from()) is not None
-        ):
+        if (statement := self.import_main()) is not None or (
+            statement := self.import_from()
+        ) is not None:
             return statement
 
         return None
@@ -2972,18 +2966,15 @@ class Parser:
         rule = '@' path ('(' arguments ')')? newline
         """
 
-        if (
-            self.consume_string("@") is not None
-            and (path := self.path()) is not None
-        ):
+        if self.consume_string("@") is not None and (path := self.path()) is not None:
             arguments = []
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string("(") is not None
                 and (arguments := self.arguments()) is not None
                 and self.consume_string(")") is not None
-            )):
+            ):
                 arguments = arguments
 
             if self.newline() is not None:
@@ -3030,13 +3021,10 @@ class Parser:
         rule = decorators (class_def | func_def | async_func_def)
         """
 
-        if (
-            (decorators := self.decorators()) is not None
-            and (
-               (statement := self.func_def()) is not None
-               or (statement := self.class_def()) is not None
-               or (statement := self.async_func_def()) is not None
-            )
+        if (decorators := self.decorators()) is not None and (
+            (statement := self.func_def()) is not None
+            or (statement := self.class_def()) is not None
+            or (statement := self.async_func_def()) is not None
         ):
             statement.decorators = decorators
             return statement
@@ -3117,10 +3105,10 @@ class Parser:
             small_statements = [first_statement]
 
             self.register_revert()
-            while (self.revertable(
+            while self.revertable(
                 self.consume_string(";") is not None
                 and (statement := self.small_statement()) is not None
-            )):
+            ):
                 small_statements.append(statement)
 
             self.consume_string(";")
@@ -3131,9 +3119,13 @@ class Parser:
 
             # If there is no token or next token is a dedent, ignore newline.
             if not next_token or next_token.kind == TokenKind.DEDENT:
-                return small_statements if len(small_statements) > 1 else first_statement
+                return (
+                    small_statements if len(small_statements) > 1 else first_statement
+                )
             elif next_token.kind == TokenKind.NEWLINE:
-                return small_statements if len(small_statements) > 1 else first_statement
+                return (
+                    small_statements if len(small_statements) > 1 else first_statement
+                )
 
         return None
 
@@ -3145,10 +3137,9 @@ class Parser:
             | compound_statement
             | simple_statement
         """
-        if (
-            (statement := self.compound_statement()) is not None
-            or (statement := self.simple_statement()) is not None
-        ):
+        if (statement := self.compound_statement()) is not None or (
+            statement := self.simple_statement()
+        ) is not None:
             return statement
 
         return None
@@ -3163,10 +3154,7 @@ class Parser:
         statements = []
         statement = None
 
-        while (
-            self.newline() is not None
-            or (statement := self.statement()) is not None
-        ):
+        while self.newline() is not None or (statement := self.statement()) is not None:
             if statement:
                 statements.append(statement)
                 statement = None
@@ -3184,6 +3172,6 @@ class Parser:
         """
 
         if (statements := self.statements()) is not None:
-            return statements
+            return Program(statements)
         else:
-            return statements
+            return Program(statements)

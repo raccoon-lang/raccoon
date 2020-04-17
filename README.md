@@ -11,6 +11,41 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 
 **Raccoon will not maintain complete syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Raccoon. For example, Raccoon doesn't have runtime module modification.
 
+Raccoon is similar to Python in a lot of ways, but being a statically-typed language, it made some trade-offs to ensure predictable performance. In this respect, Python code is not always compatible with Raccoon. While Raccoon prioritizes a design that benefits static analysis, it still allows Python's level of flexibility where statically determinable.
+
+```py
+class Person:
+    """
+    Class for creating details about a person.
+    """
+    population = 0
+
+    def __init__(self, name, age, gender="Male"):
+        self.name = name
+        self.age = age
+        self.gender = gender
+        Person.population += 1
+
+    def __del__(self):
+        """
+        Decrement population
+        """
+        Person.population -= 1
+
+    def __str__(self):
+        """
+        Create a string representation of object
+        """
+        return (
+            f"Person(name={self.name}, age={self.age}, gender={self.gender})"
+        )
+
+jane = Person("Jane Doe", "Female", 23)
+print('Jane >', jane)
+```
+
+You can check [samples folder](#samples) for more examples.
+
 ### SETTING UP THE PROJECT
 ##### REQUIREMENTS
 - [Python 3.8+](https://www.python.org/downloads/) - Python interpreter
@@ -18,9 +53,9 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 - [LLVM 8.x](https://github.com/llvm/llvm-project/releases/tag/llvmorg-8.0.1) - LLVM library
     <details>
     <summary>Read more</summary>
+    <p>
 
-    ##### MAC OS
-    ------
+    # macOS
 
     Install LLVM with [brew](https://brew.sh/)
 
@@ -29,8 +64,7 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     ```
 
 
-    ##### DEBIAN
-    ------
+    # Debian
 
     Install LLVM 8
 
@@ -39,14 +73,14 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     ```
 
 
-    ##### WINDOWS
-    ------
+    # Windows
 
     ...
 
     ------
 
     You can also get the binaries of the various platform [here](https://github.com/llvm/llvm-project/releases/tag/llvmorg-8.0.1)
+    </p>
     </details>
 
 ##### STEPS
@@ -70,34 +104,6 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
     ```sh
     cli/raccoon samples/test.ra --ast
     ```
-
-
-### LANGUAGE DESIGN
-Raccoon is similar to Python in a lot of ways, but being a statically-typed language, it made some trade-offs to ensure predictable performance. In this respect, Raccoon is not always compatible with Python.
-
-Raccoon's type system is also similar to Python's although it is a bit more fleshed out. While Raccoon prioritizes a design that benefits static analysis, it still allows Python's level of flexibility where statically determinable. This is why type inference and structural typing are an important part of Raccoon.
-
-```py
-class Person:
-    population = 0
-
-    def __init__(self, name, gender="Male", age=None):
-        Person.population += 1
-
-        self.name = name
-        self.gender = gender
-
-        if age is not None:
-            self.age = age
-
-    def __del__(self):
-        Person.population -= 1
-
-jane = Person("Jane Doe", "Female", 23)
-print(jane.name, jane.gender, jane.age)  # "Jane Female 23"
-```
-
-You can check [samples folder](#samples) for more examples.
 
 ### LICENSE
 [Apache License 2.0](LICENSE)

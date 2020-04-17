@@ -88,7 +88,7 @@ class BinaryOpKind(Enum):
 
 class UnaryOpKind(Enum):
     """
-    The different kinds of unary operators
+    The different kinds of unary operators.
     """
 
     PLUS = 0
@@ -119,7 +119,7 @@ class UnaryOpKind(Enum):
 # Types related to ASTS
 class ComprehensionType(Enum):
     """
-    Different types of comprehension expression
+    Different types of comprehension expression.
     """
 
     GENERATOR = 0
@@ -130,10 +130,9 @@ class ComprehensionType(Enum):
 
 class AST:
     """
-    NOTE:
-        We really only need our AST classes to inherit from this one class. We don't need a
-        complicated type hierarchy since the Parser already ensures a StatementExpr can't be
-        passed where an ExprAST is expected, for example.
+    We really only need our AST classes to inherit from this one class. We don't need a
+    complicated type hierarchy since the Parser already ensures a StatementExpr can't be
+    passed where an ExprAST is expected, for example.
     """
 
     def __repr__(self):
@@ -148,12 +147,24 @@ class AST:
     def __eq__(self, other):
         return vars(self) == vars(other) if isinstance(other, AST) else None
 
+    def accept_on_children(self, visitor):
+        pass
+
+    def accept(self, visitor):
+        """
+        Accepts visitor and calls visitor's act method. Some visitors prevent
+        any further traversal by returning False from their act methods.
+        """
+
+        if visitor.act(self):
+            self.accept_on_children(visitor)
+
 
 class Null(AST):
     """
-    This class is useful for creating AST shim that can to be ignored.
-    `parser.opt`, a method that matches zero or one occurence of a sequence,
-    returns a Null if there is zero occurence of a sequence to show it is still valid.
+    Null is used to represent missing AST. It is preferrable over `None`, because it can be
+    trasversed during an AST walk. For example, we can call `accept` method on it unlike
+    `None` which would require a logic like this: `self.expr or self.expr.accept(visitor)`.
     """
 
     pass
@@ -220,7 +231,7 @@ class PrefixedString(AST):
 
 
 class Operator(AST):
-    def __init__(self, op, rem_op=None):
+    def __init__(self, op, rem_op=Null()):
         self.op = op
         self.rem_op = rem_op  # For when operator spans two tokens like `not in`
 
@@ -230,6 +241,10 @@ class UnaryExpr(AST):
         self.expr = expr
         self.op = op
 
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+        self.op.accept(visitor)
+
 
 class BinaryExpr(AST):
     def __init__(self, lhs, op, rhs):
@@ -237,12 +252,22 @@ class BinaryExpr(AST):
         self.op = op
         self.rhs = rhs
 
+    def accept_on_children(self, visitor):
+        self.rhs.accept(visitor)
+        self.op.accept(visitor)
+        self.lhs.accept(visitor)
+
 
 class FuncParam(AST):
-    def __init__(self, name, type_annotation=None, default_value_expr=None):
+    def __init__(self, name, type_annotation=Null(), default_value_expr=Null()):
         self.name = name
         self.type_annotation = type_annotation
         self.default_value_expr = default_value_expr
+
+    def accept_on_children(self, visitor):
+        self.name.accept(visitor)
+        self.type_annotation.accept(visitor)
+        self.default_value_expr.accept(visitor)
 
 
 class PositionalParamsSeparator(AST):
@@ -254,14 +279,20 @@ class FuncParams(AST):
     def __init__(
         self,
         params,
-        tuple_rest_param=None,
+        tuple_rest_param=Null(),
         keyword_only_params=[],
-        named_tuple_rest_param=None,
+        named_tuple_rest_param=Null(),
     ):
         self.params = params
         self.tuple_rest_param = tuple_rest_param
         self.keyword_only_params = keyword_only_params
         self.named_tuple_rest_param = named_tuple_rest_param
+
+    def accept_on_children(self, visitor):
+        [param.accept(visitor) for param in self.params]
+        self.tuple_rest_param.accept(visitor)
+        [param.accept(visitor) for param in self.keyword_only_params]
+        self.named_tuple_rest_param.accept(visitor)
 
 
 class Function(AST):
@@ -269,9 +300,9 @@ class Function(AST):
         self,
         name,
         body,
-        params=[],
-        return_type_annotation=None,
-        generics_annotation=None,
+        params=Null(),
+        return_type_annotation=Null(),
+        generics_annotation=Null(),
         is_async=False,
         decorators=[],
     ):
@@ -283,15 +314,29 @@ class Function(AST):
         self.is_async = is_async
         self.decorators = decorators
 
+    def accept_on_children(self, visitor):
+        self.name.accept(visitor)
+        [statement.accept(visitor) for statement in self.body]
+        self.params.accept(visitor)
+        self.return_type_annotation.accept(visitor)
+        self.generics_annotation.accept(visitor)
+        [decorator.accept(visitor) for decorator in self.decorators]
+
 
 class TupleRestExpr(AST):
     def __init__(self, expr):
         self.expr = expr
 
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+
 
 class NamedTupleRestExpr(AST):
     def __init__(self, expr):
         self.expr = expr
+
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
 
 
 class Comprehension(AST):
@@ -300,11 +345,11 @@ class Comprehension(AST):
         expr,
         var_expr,
         iterable_expr,
-        key_expr=None,
+        key_expr=Null(),
         comprehension_type=ComprehensionType.GENERATOR,
-        where_expr=None,
+        where_expr=Null(),
         is_async=False,
-        nested_comprehension=None,
+        nested_comprehension=Null(),
     ):
         self.expr = expr
         self.key_expr = key_expr
@@ -315,38 +360,68 @@ class Comprehension(AST):
         self.is_async = is_async
         self.nested_comprehension = nested_comprehension
 
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+        self.key_expr.accept(visitor)
+        self.var_expr.accept(visitor)
+        self.iterable_expr.accept(visitor)
+        self.where_expr.accept(visitor)
+        self.nested_comprehension.accept(visitor)
+
 
 class Yield(AST):
     def __init__(self, exprs, is_yield_from=False):
         self.exprs = exprs
         self.is_yield_from = is_yield_from
 
+    def accept_on_children(self, visitor):
+        [expr.accept(visitor) for expr in self.exprs]
+
 
 class Dict(AST):
     def __init__(self, key_value_pairs=[]):
         self.key_value_pairs = key_value_pairs
+
+    def accept_on_children(self, visitor):
+        for (key_expr, value_expr) in self.key_value_pairs:
+            key_expr.accept(visitor)
+            value_expr.accept(visitor)
 
 
 class Set(AST):
     def __init__(self, exprs=[]):
         self.exprs = exprs
 
+    def accept_on_children(self, visitor):
+        [expr.accept(visitor) for expr in self.exprs]
+
 
 class List(AST):
     def __init__(self, exprs=[]):
         self.exprs = exprs
+
+    def accept_on_children(self, visitor):
+        [expr.accept(visitor) for expr in self.exprs]
 
 
 class Tuple(AST):
     def __init__(self, exprs=[]):
         self.exprs = exprs
 
+    def accept_on_children(self, visitor):
+        [expr.accept(visitor) for expr in self.exprs]
+
 
 class SubscriptIndex(AST):
-    def __init__(self, from_expr=None, skip_expr=None, to_expr=None):
+    def __init__(self, from_expr=Null(), skip_expr=Null(), to_expr=Null()):
         self.from_expr = from_expr
         self.skip_expr = skip_expr
         self.to_expr = to_expr
+
+    def accept_on_children(self, visitor):
+        self.from_expr.accept(visitor)
+        self.skip_expr.accept(visitor)
+        self.to_expr.accept(visitor)
 
 
 class Subscript(AST):
@@ -354,17 +429,28 @@ class Subscript(AST):
         self.expr = expr
         self.indices = indices
 
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+        [index.accept(visitor) for index in self.indices]
+
 
 class Call(AST):
     def __init__(self, expr, arguments):
         self.expr = expr
         self.arguments = arguments
 
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+        [argument.accept(visitor) for argument in self.arguments]
+
 
 class Field(AST):
     def __init__(self, expr, field):
         self.expr = expr
         self.field = field
+
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
 
 
 class Bool(AST):
@@ -377,20 +463,31 @@ class NoneLiteral(AST):
 
 
 class Argument(AST):
-    def __init__(self, expr, name=None):
+    def __init__(self, expr, name=Null()):
         self.expr = expr
         self.name = name
+
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+        self.name.accept(visitor)
 
 
 class AwaitedExpr(AST):
     def __init__(self, expr):
         self.expr = expr
 
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+
 
 class WithArgument(AST):
     def __init__(self, expr, name=None):
         self.expr = expr
         self.name = name
+
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+        self.name.accept(visitor)
 
 
 class WithStatement(AST):
@@ -399,6 +496,10 @@ class WithStatement(AST):
         self.body = body
         self.is_async = is_async
 
+    def accept_on_children(self, visitor):
+        [argument.accept(visitor) for argument in self.arguments]
+        [statement.accept(visitor) for statement in self.body]
+
 
 class Except(AST):
     def __init__(self, argument, name, body):
@@ -406,20 +507,35 @@ class Except(AST):
         self.name = name
         self.body = body
 
+    def accept_on_children(self, visitor):
+        self.argument.accept(visitor)
+        self.name.accept(visitor)
+        [statement.accept(visitor) for statement in self.body]
+
 
 class TryStatement(AST):
-    def __init__(
-        self, try_body, except_clauses=None, else_body=None, finally_body=None
-    ):
+    def __init__(self, try_body, except_clauses=[], else_body=[], finally_body=[]):
         self.try_body = try_body
         self.except_clauses = except_clauses
         self.else_body = else_body
         self.finally_body = finally_body
 
+    def accept_on_children(self, visitor):
+        [statement.accept(visitor) for statement in self.try_body]
+        [statement.accept(visitor) for statement in self.except_clauses]
+        [statement.accept(visitor) for statement in self.else_body]
+        [statement.accept(visitor) for statement in self.finally_body]
+
 
 class ForStatement(AST):
     def __init__(
-        self, var_expr, iterable_expr, body, else_body, where_expr=None, is_async=False
+        self,
+        var_expr,
+        iterable_expr,
+        body,
+        else_body=Null(),
+        where_expr=Null(),
+        is_async=False,
     ):
         self.var_expr = var_expr
         self.iterable_expr = iterable_expr
@@ -428,13 +544,26 @@ class ForStatement(AST):
         self.where_expr = where_expr
         self.is_async = is_async
 
+    def accept_on_children(self, visitor):
+        self.var_expr.accept(visitor)
+        self.iterable_expr.accept(visitor)
+        [statement.accept(visitor) for statement in self.body]
+        [statement.accept(visitor) for statement in self.else_body]
+        self.where_expr.accept(visitor)
+
 
 class WhileStatement(AST):
-    def __init__(self, cond_expr, body, else_body, where_expr=None):
+    def __init__(self, cond_expr, body, else_body=[], where_expr=Null()):
         self.cond_expr = cond_expr
         self.body = body
         self.else_body = else_body
         self.where_expr = where_expr
+
+    def accept_on_children(self, visitor):
+        self.cond_expr.accept(visitor)
+        [statement.accept(visitor) for statement in self.body]
+        [statement.accept(visitor) for statement in self.else_body]
+        self.where_expr.accept(visitor)
 
 
 class Elif(AST):
@@ -442,13 +571,23 @@ class Elif(AST):
         self.cond_expr = cond_expr
         self.body = body
 
+    def accept_on_children(self, visitor):
+        self.cond_expr.accept(visitor)
+        [statement.accept(visitor) for statement in self.body]
+
 
 class IfStatement(AST):
-    def __init__(self, cond_expr, if_body, elifs=[], else_body=None):
+    def __init__(self, cond_expr, if_body, elifs=[], else_body=Null()):
         self.cond_expr = cond_expr
         self.if_body = if_body
         self.elifs = elifs
         self.else_body = else_body
+
+    def accept_on_children(self, visitor):
+        self.cond_expr.accept(visitor)
+        [statement.accept(visitor) for statement in self.if_body]
+        [elif_.accept(visitor) for elif_ in self.elifs]
+        [statement.accept(visitor) for statement in self.else_body]
 
 
 class IfExpr(AST):
@@ -457,11 +596,20 @@ class IfExpr(AST):
         self.cond_expr = cond_expr
         self.else_expr = else_expr
 
+    def accept_on_children(self, visitor):
+        self.if_expr.accept(visitor)
+        self.cond_expr.accept(visitor)
+        self.else_expr.accept(visitor)
+
 
 class NamedExpression(AST):
     def __init__(self, name, expr):
         self.name = name
         self.expr = expr
+
+    def accept_on_children(self, visitor):
+        self.name.accept(visitor)
+        self.expr.accept(visitor)
 
 
 class GenericType(AST):
@@ -469,46 +617,72 @@ class GenericType(AST):
         self.generic_type = generic_type
         self.specialization_types = specialization_types
 
+    def accept_on_children(self, visitor):
+        self.generic_type.accept(visitor)
+        [type_.accept(visitor) for type_ in self.specialization_types]
+
 
 class FunctionType(AST):
     def __init__(self, return_type, param_types=[]):
         self.return_type = return_type
         self.param_types = param_types
 
+    def accept_on_children(self, visitor):
+        self.return_type.accept(visitor)
+        [statement.accept(visitor) for statement in self.param_types]
+
 
 class ListType(AST):
     def __init__(self, types):
         self.types = types
+
+    def accept_on_children(self, visitor):
+        [type_.accept(visitor) for type_ in self.types]
 
 
 class TupleType(AST):
     def __init__(self, types):
         self.types = types
 
+    def accept_on_children(self, visitor):
+        [type_.accept(visitor) for type_ in self.types]
+
 
 class Type(AST):
     def __init__(self, type):
         self.type = type
+
+    def accept_on_children(self, visitor):
+        self.type.accept(visitor)
 
 
 class IntersectionType(AST):
     def __init__(self, types):
         self.types = types
 
+    def accept_on_children(self, visitor):
+        [type_.accept(visitor) for type_ in self.types]
+
 
 class UnionType(AST):
     def __init__(self, types):
         self.types = types
+
+    def accept_on_children(self, visitor):
+        [type_.accept(visitor) for type_ in self.types]
 
 
 class GenericsAnnotation(AST):
     def __init__(self, types):
         self.types = types
 
+    def accept_on_children(self, visitor):
+        [type_.accept(visitor) for type_ in self.types]
+
 
 class Class(AST):
     def __init__(
-        self, name, body, parent_classes=[], generics_annotation=None, decorators=[]
+        self, name, body, parent_classes=[], generics_annotation=Null(), decorators=[]
     ):
         self.name = name
         self.body = body
@@ -516,36 +690,56 @@ class Class(AST):
         self.generics_annotation = generics_annotation
         self.decorators = decorators
 
+    def accept_on_children(self, visitor):
+        self.name.accept(visitor)
+        [statement.accept(visitor) for statement in self.body]
+        [parent_class.accept(visitor) for parent_class in self.parent_classes]
+        self.generics_annotation.accept(visitor)
+        [decorator.accept(visitor) for decorator in self.decorators]
+
 
 class ListLHS(AST):
     def __init__(self, exprs):
         self.exprs = exprs
+
+    def accept_on_children(self, visitor):
+        [statement.accept(visitor) for statement in self.exprs]
 
 
 class TupleLHS(AST):
     def __init__(self, exprs):
         self.exprs = exprs
 
+    def accept_on_children(self, visitor):
+        [statement.accept(visitor) for statement in self.exprs]
+
 
 class Globals(AST):
     def __init__(self, names):
         self.names = names
+
+    def accept_on_children(self, visitor):
+        [name.accept(visitor) for name in self.names]
+        [statement.accept(visitor) for statement in self.exprs]
 
 
 class NonLocals(AST):
     def __init__(self, names):
         self.names = names
 
+    def accept_on_children(self, visitor):
+        [name.accept(visitor) for name in self.names]
+        [statement.accept(visitor) for statement in self.exprs]
+
 
 class AssertStatement(AST):
-    def __init__(self, cond_expr, message_expr=None):
+    def __init__(self, cond_expr, message_expr=Null()):
         self.cond_expr = cond_expr
         self.message_expr = message_expr
 
-
-class DelStatement(AST):
-    def __init__(self, names):
-        self.names = names
+    def accept_on_children(self, visitor):
+        self.cond_expr.accept(visitor)
+        self.message_expr.accept(visitor)
 
 
 class PassStatement(AST):
@@ -567,19 +761,34 @@ class ReturnStatement(AST):
     def __init__(self, exprs=[]):
         self.exprs = exprs
 
+    def accept_on_children(self, visitor):
+        if type(self.exprs) == list:
+            [statement.accept(visitor) for statement in self.exprs]
+        else:
+            self.exprs.accept(visitor)
+
 
 class RaiseStatement(AST):
-    def __init__(self, expr=None, from_expr=None):
+    def __init__(self, expr=Null(), from_expr=Null()):
         self.expr = expr
         self.from_expr = from_expr
 
+    def accept_on_children(self, visitor):
+        self.expr.accept(visitor)
+        self.from_expr.accept(visitor)
+
 
 class AssignmentStatement(AST):
-    def __init__(self, lhses, assignment_op, value_expr, type_annotation=None):
+    def __init__(self, lhses, assignment_op, value_expr, type_annotation=Null()):
         self.lhses = lhses
         self.assignment_op = assignment_op
         self.value_expr = value_expr
         self.type_annotation = type_annotation
+
+    def accept_on_children(self, visitor):
+        [lhs.accept(visitor) for lhs in self.lhses]
+        self.assignment_op.accept(visitor)
+        self.value_expr.accept(visitor)
 
 
 class MainPath(AST):
@@ -588,6 +797,10 @@ class MainPath(AST):
         self.relative_level = relative_level
         self.alias = alias
 
+    def accept_on_children(self, visitor):
+        [path_name.accept(visitor) for path_name in self.path_names]
+        self.alias.accept(visitor)
+
 
 class SubPath(AST):
     def __init__(self, path_names, alias=None, is_import_all=False):
@@ -595,14 +808,34 @@ class SubPath(AST):
         self.path_names = path_names
         self.alias = alias
 
+    def accept_on_children(self, visitor):
+        [path_name.accept(visitor) for path_name in self.path_names]
+        self.alias.accept(visitor)
+
 
 class ImportStatement(AST):
     def __init__(self, main_path, sub_paths):
         self.main_path = main_path
         self.sub_paths = sub_paths
 
+    def accept_on_children(self, visitor):
+        self.main_path.accept(visitor)
+        [path.accept(visitor) for path in self.sub_paths]
+
 
 class Decorator(AST):
-    def __init__(self, path, arguments):
-        self.path = path
+    def __init__(self, path_names, arguments):
+        self.path_names = path_names
         self.arguments = arguments
+
+    def accept_on_children(self, visitor):
+        [path_name.accept(visitor) for path_name in self.path_names]
+        [argument.accept(visitor) for argument in self.arguments]
+
+
+class Program(AST):
+    def __init__(self, statements=[]):
+        self.statements = statements
+
+    def accept_on_children(self, visitor):
+        [statement.accept(visitor) for statement in self.statements]
