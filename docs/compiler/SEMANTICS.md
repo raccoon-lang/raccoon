@@ -28,13 +28,13 @@
     ##### AFFECTED ELEMENTS
     - function applications
         - function(Any) - 3
-        - function(Dog { name: str}) - 1
+        - function(Dog { name: str }) - 1
         - function(Type) - 2
         - funtion(Super) - 3
 
     - lists
         - list[Any] - 3
-        - list[Dog { name: str}] - Not supported
+        - list[Dog { name: str }] - Not supported
         - list[Type] - 2
         - list[Super] - 3
 
@@ -61,6 +61,7 @@
         - module import
         - inheritance
         - reference (cycle)
+        - constructor
 
 
     - USE BEFORE DECLARATION
@@ -142,6 +143,13 @@
         ##### AFFECTED ELEMENTS
         - functions
 
+    - RECURSIVE REDUCTION OR EXPANSION
+
+        When a static construct is able to break static guarantees like its length through recursion or loops.
+
+        ##### AFFECTED ELEMENTS
+        - tuple added to itself
+        - recursive varargs function
 
 - LOWERING
 
@@ -160,7 +168,7 @@
         #### AFFECTED ELEMENTS
         - macros
 
-- EXTENSION [FUTURE]
+- EXTENSIONS [FUTURE]
 
     Allowing some aspects of the compiler be extended to third party code
 
@@ -229,6 +237,10 @@
         ```py
         """
         { start: uint, end: uint, list: ptr _ } :: Slice
+
+        Can be optimized
+
+        { start: ptr _, len: uint }
         """
         ```
 

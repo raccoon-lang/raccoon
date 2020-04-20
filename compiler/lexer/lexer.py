@@ -24,7 +24,8 @@ GUIDELINES:
 """
 
 from enum import Enum
-from .valid import (
+from compiler.options import CompilerOptions
+from compiler.lexer.valid import (
     is_horizontal_space,
     is_space,
     is_dec_digit,
@@ -158,7 +159,7 @@ class Lexer:
     TODO: Normalize (using NFKC normalization form) the codepoints
     """
 
-    def __init__(self, code):
+    def __init__(self, code, compiler_opts=CompilerOptions()):
         self.code = code
         self.code_length = len(code)
         self.cursor = -1
@@ -168,6 +169,7 @@ class Lexer:
         self.indent_factor = -1
         self.is_in_brackets = False
         self.indent_space_type = IndentSpaceKind.UNKNOWN
+        self.compiler_opts = compiler_opts
 
     def vomit_char(self):
         """

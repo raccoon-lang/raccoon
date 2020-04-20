@@ -9,15 +9,14 @@
 ### INTRODUCTION
 Raccoon is a language with Python 3.x syntax that is amenable to static analysis. The repository both defines the spec of the language and contains a reference implementation of the compiler.
 
-**Raccoon will not maintain complete syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Raccoon. For example, Raccoon doesn't have runtime module modification.
-
-Raccoon is similar to Python in a lot of ways, but being a statically-typed language, it made some trade-offs to ensure predictable performance. In this respect, Python code is not always compatible with Raccoon. While Raccoon prioritizes a design that benefits static analysis, it still allows Python's level of flexibility where statically determinable.
+**Raccoon will not maintain full syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Raccoon. While Raccoon prioritizes a design that benefits static analysis, it still allows Python's level of flexibility where statically determinable.
 
 ```py
 class Person:
     """
     Class for creating details about a person.
     """
+
     population = 0
 
     def __init__(self, name, age, gender="Male"):
@@ -36,12 +35,11 @@ class Person:
         """
         Create a string representation of object
         """
-        return (
-            f"Person(name={self.name}, age={self.age}, gender={self.gender})"
-        )
+        return f"Person(name={self.name}, age={self.age}, gender={self.gender})"
+
 
 jane = Person("Jane Doe", "Female", 23)
-print('Jane >', jane)
+print("Jane >", jane)
 ```
 
 You can check [samples folder](#samples) for more examples.

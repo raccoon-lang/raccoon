@@ -118,7 +118,7 @@ rest_exprs =
     | rest_expr (',' rest_expr)* ','?
 
 lambda_block_def =
-    | 'lambda' lambda_params? ':' indent statement+ dedent
+    | 'lambda' lambda_params? ':' indent statements dedent
 
 indentable_expr =
     | lambda_block_def
@@ -270,7 +270,7 @@ generics_annotation =
 
 class_suite = # Diverges from Python's `suite` # When `string+` has more than one `string` it gets compiled as a stringlist.
     | assignment_statement
-    | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string)+ dedent
+    | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string | newline)+ dedent
 
 class_def = # Divergence from Python's `arglist`
     | 'class' identifier generics_annotation? ('(' identifiers ')')? ':' class_suite
@@ -432,8 +432,8 @@ small_statement =
     | nonlocal_statement
     | assert_statement
 
-simple_statement = # Newline token is ignored when a dedent token or no token comes next.
-    | small_statement (';' small_statement)* ';'? newline
+simple_statement = # Diverges from Python's `simple_stmt`
+    | small_statement (';' small_statement)* ';'?
 
 statement =
     | compound_statement

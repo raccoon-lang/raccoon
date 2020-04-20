@@ -66,9 +66,9 @@
 
         ```py
         ls = [1, 2, 3, 4, 5, 6, 7]
-        slc = [:5] # Slice[int]
+        sl = [:5] # Slice[int]
 
-        print(slc) # [1, 2, 3, 4]
+        print(sl) # [1, 2, 3, 4]
         ```
 
 - Tuples
@@ -93,7 +93,7 @@
         tup[0] = 4
         ```
 
-    - Directly or indirectly, a tuple can't be used added to itself.
+    - Directly or indirectly, a tuple can't be added to itself.
 
         Basically anything that makes assigning a reference/name with its previous tuple value possible is not allowed. Only identity assignment is allowed. It's a recursive problem, that static analyzers generally can't resolve and hate.
 
@@ -283,28 +283,41 @@
 
 - Scoping rules
 
-    - The iterator variables of a for loop is local to the loop's scope. It is a declaration rather than an assignment.
-
-    **Python**
+    - Variables declared in loops or if (unless the variable appear in all branches of the if statement) cannot be accessed outside the statement scope.
 
     ```py
-    def foo():
-        y = 100
-        for y in [1, 2, 3]:
-            print(y)
+    for i in iterable:
+        x = 35
+    """
+    ERROR
 
-        print(y) #=> 3
-    ```
+    print(x)
+    """
 
-    **Raccoon**
+    while condition:
+        y = 35
+    """
+    ERROR
 
-    ```py
-    def foo():
-        y = 100
-        for y in [1, 2, 3]:
-            print(y)
+    print(y)
+    """
 
-        print(y) #=> 100
+    if condition:
+        z = 35
+    elif condition2:
+        z = 45
+    """
+    ERROR
+
+    print(y)
+    """
+
+    if condition:
+        z = 35
+    else:
+        z = 45
+
+    print(z) # Okay
     ```
 
 - Literal

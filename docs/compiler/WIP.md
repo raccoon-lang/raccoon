@@ -35,7 +35,7 @@
             - Implement as hashset and check if element already exist, which can probably be done with symbol table
 
 
-    - FRAMES
+    - FRAMES [UNECESSARY - TO BE REMOVED]
 
         Frames are abstract definition of functions and types and they give the following benefits:
         - Reduce code bloat
@@ -102,88 +102,61 @@
             - The instantiations can be hashed for fast lookup.
             - Instantiation generation and type check is parallelizable.
 
-- PROCESS
+    - INSTANCES
 
-    Semantic Analysis Structure
-    TODO: To be documented properly
+        #### TYPES
+        - Instance Frames - has incomplete type information
+        - Concrete Instances - has complete type information
 
-    ```
-    token_extraction_visitor
+- LANGUAGE ELEMENTS
+    - Indexing: x.y, y[0]
+    - Calls: foo(x, y), +x, x + y
+    - Control flow constructs: if, for, while, yield, return, raise, continue, break
 
-        get_referenced_tokens
-
-        reset_parser
-
-    main_semantic_visitor
-
-        canonicalize_literal
-
-        create_symbol_table
-
-        save_variable_declaration
-
-        save_function_declaration
-            check_argument_name_conflict
-
-        save_type_declaration
-            check_cyclic_dependency
-
-        create_function_frame
-            unionize_var_types
-                type_check_if_statement
-                type_check_while_statement
-                type_check_for_statement
-                type_check_comprehension
-
-        create_type_frame
-            resolve_diamond_problem
-
-        declare_function_instance
-            check_argument_position_and_types
-
-        declare_type_instance
-
-        track_lifetimes
-
-    instantiation_visitor
-
-        instantiate_function_declaration
-            check_method_exist
-
-        instantiate_type_declaration
-
-        create_function_impl_frame # LIB
-
-        create_type_impl_frame # LIB
-
-    lower_ast
-
-    link_modules
-
-    generate_llvm_module
-    ```
+- WHAT WE NEED FROM MISSING ELEMENTS
+    - what type is it (variable)
+    - does it exist (function, class, variables)
+    - what arguments (function)
 
 
-- WIP CODE
+- CANONOICALIZING
+    - hex, oct an bin literal to dec equivalent
+    - None and False to 0
+    - True to 1
 
+
+- LOWERING
     ```py
-    visitation
-    symbol_table = {
-
-    }
-
-    scope
+    for x in iter:
+        print(x)
     ```
 
     ```py
-    class FunctionFrame:
-        def __init__(self, arg_types, body_types, return_type, sub_frames=None):
-            self.arg_types = arg_types
-            self.body_types = body_types
-            self.return_type = return_type
-            self.sub_frames = sub_frames
-
-    class TypeFrame:
-        def __init__(self, body_types):
-            self.body_types = body_types
+    x = iter.next()
+    while x is not StopIteration:
+        print(x)
+        x = iter.next()
     ```
+
+
+-------------------
+
+- WIP
+    Function
+    - create function frame
+        - check duplicate argument names
+        - check recursive calls
+        - unionizing types
+        - create function isntances
+        - create type instances
+
+    ForStatement
+    - type check variables
+
+
+    ```py
+    - (1, 2, 3) { 1|None, 2|3, MISSING(foo) } -> 3
+    - (2, 1) { 2, 1|str } -> 2
+    - ...
+    ```
+

@@ -1,3 +1,0 @@
-"""
-Type and function instantiations
-"""

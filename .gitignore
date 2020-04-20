@@ -2,3 +2,5 @@
 htmlcov
 **/__pycache__
 .coverage
+**/.DS_Store
+**/.ipynb_checkpoints

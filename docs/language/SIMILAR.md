@@ -1,20 +1,14 @@
-These are other projects similar to Raccoon, in the order of how syntactically and semantically close they are to Python.
+These are other projects similar to Raccoon
 
 #### Nuitka
 
-
-
-#### RPython
-
-
-
 #### MypyC
-
-
 
 #### Cython
 
+#### RPython
 
+#### Pythran
 
 #### Nim
 

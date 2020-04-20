@@ -14,7 +14,8 @@ GUIDELINES:
 """
 
 from functools import wraps
-from ..lexer.lexer import TokenKind
+from compiler.lexer.lexer import TokenKind
+from compiler.options import CompilerOptions
 from .ast import (
     Null,
     Newline,
@@ -123,30 +124,30 @@ class Parser:
             - Discard old tokens
     """
 
-    def __init__(self, tokens):
+    def __init__(self, tokens, compiler_opts=CompilerOptions()):
         self.tokens = tokens
         self.tokens_length = len(tokens)
         self.cursor = -1
         self.row = 0
         self.column = -1
         self.cache = {}
-        self.combinator_data = {}
+        self.compiler_opts = compiler_opts
         self.revert_data = (self.cursor, *self.get_line_info())
 
     def __repr__(self):
         return f"{type(self).__name__}{vars(self)}"
 
     @staticmethod
-    def from_code(code):
+    def from_code(code, compiler_opts=CompilerOptions()):
         """
         Creates a parser from code.
         """
 
         from ..lexer.lexer import Lexer
 
-        tokens = Lexer(code).lex()
+        tokens = Lexer(code, compiler_opts).lex()
 
-        return Parser(tokens)
+        return Parser(tokens, compiler_opts)
 
     def get_tokens_from_code(self, code):
         """
@@ -168,7 +169,6 @@ class Parser:
         self.row = 0
         self.column = -1
         self.cache = {}
-        self.combinator_data = {}
         self.revert_data = (self.cursor, *self.get_line_info())
 
     def get_line_info(self):
@@ -914,16 +914,14 @@ class Parser:
     @memoize
     def lambda_block_def(self):
         """
-        rule = 'lambda' lambda_params? ':' indent statement+ dedent
+        rule = 'lambda' lambda_params? ':' indent statements dedent
         """
 
         if self.consume_string("lambda") is not None:
             params = params if (params := self.lambda_params()) else Null()
 
             if self.consume_string(":") is not None and self.indent() is not None:
-                statements = []
-                while (statement := self.statements()) is not None:
-                    statements.append(statement)
+                statements = self.statements() or []
 
                 # There should be at least an expression.
                 # TODO: Raise error if block has dedent but no expression.
@@ -2043,7 +2041,7 @@ class Parser:
         """
         rule =
             | assignment_statement
-            | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string)+ dedent
+            | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string | newline)+ dedent
 
         SPECIAL BEHAVIOR:
             When `string+` has more than one `string` it gets compiled as a stringlist.
@@ -2054,6 +2052,7 @@ class Parser:
 
         if self.indent() is not None:
             statements = []
+            statement = newline = string = None
 
             while (
                 (statement := self.import_statement()) is not None
@@ -2061,26 +2060,25 @@ class Parser:
                 or (statement := self.class_def()) is not None
                 or (statement := self.async_func_def()) is not None
                 or (statement := self.func_def()) is not None
-                or (statement := self.string()) is not None
+                or (string := self.all_string()) is not None
+                or (newline := self.newline()) is not None
             ):
-                # We store consecutive strings together as a string_list
-                if (
-                    statements
-                    and (ty := type(statement)) == String
-                    and ty == ByteString
-                    and ty == PrefixedString
-                ):
+                if newline is not None:
+                    pass
+                elif statements and string is not None:
+                    # We store consecutive strings together as a string_list
                     prev_statement = statements[-1]
 
                     if type(prev_statement) == String:
                         statements[-1] = StringList([statements[-1], statement])
-
                     elif type(prev_statement) == StringList:
                         statements[-1].strings.append(statement)
                     else:
                         statements.append(statement)
                 else:
-                    statements.append(statement)
+                    statements.append(statement or string)
+
+                statement = newline = string = None
 
             # There should be at least an expression.
             # TODO: Raise error if block has dedent but no expression.
@@ -3095,7 +3093,7 @@ class Parser:
     @memoize
     def simple_statement(self):
         """
-        rule = small_statement (';' small_statement)* ';'? newline
+        rule = small_statement (';' small_statement)* ';'?
 
         SPECIAL BEHAVIOR:
             Newline token is ignored when a dedent token or no token comes next.
@@ -3113,19 +3111,7 @@ class Parser:
 
             self.consume_string(";")
 
-            next_token = None
-            if (next_cursor := self.cursor + 1) < self.tokens_length:
-                next_token = self.tokens[next_cursor]
-
-            # If there is no token or next token is a dedent, ignore newline.
-            if not next_token or next_token.kind == TokenKind.DEDENT:
-                return (
-                    small_statements if len(small_statements) > 1 else first_statement
-                )
-            elif next_token.kind == TokenKind.NEWLINE:
-                return (
-                    small_statements if len(small_statements) > 1 else first_statement
-                )
+            return small_statements if len(small_statements) > 1 else first_statement
 
         return None
 
@@ -3174,4 +3160,15 @@ class Parser:
         if (statements := self.statements()) is not None:
             return Program(statements)
         else:
-            return Program(statements)
+            return Program([])
+
+    @backtrackable
+    @memoize
+    def parse(self):
+        """
+        Parses a program and resets the parser
+        """
+
+        result = self.program()
+        self.reset()
+        return result

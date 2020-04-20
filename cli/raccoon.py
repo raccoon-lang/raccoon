@@ -4,23 +4,28 @@ from argument_handler import ArgumentHandler
 
 
 @click.command(options_metavar="[options]")
-@click.option("--version", "-v", is_flag=True, help="Show Raccoon version")
+@click.option("--version", "-v", is_flag=True, help="Shows toolchain version")
 @click.option(
     "-c",
     "--compile",
     "compile_string",
     nargs=1,
-    help="Compile Raccoon code",
+    help="Compiles Raccoon code without running it",
     type=str,
     metavar="<code>",
 )
-@click.option("--ast", is_flag=True, help="Output Raccoon AST")
-@click.option("--tokens", is_flag=True, help="Output Raccoon lexed tokens")
-@click.option("--sema", is_flag=True, help="Output Raccoon sematic analysis phase")
+@click.option("--ast", is_flag=True, help="Outputs generated AST")
+@click.option("--tokens", is_flag=True, help="Outputs generated lexed tokens")
+@click.option("--sema", is_flag=True, help="Outputs generated lowered AST")
+@click.option("--ll", is_flag=True, help="Outputs generated llvm IR")
+@click.option("--wasm", is_flag=True, help="Outputs generated Webassembly")
+@click.option(
+    "-vv", "--verbose", is_flag=True, help="Outputs extra compiler infomation"
+)
 @click.argument(
     "program_file", nargs=1, required=False, type=click.Path(), metavar="[program file]"
 )
-def app(version, program_file, compile_string, ast, tokens, sema):
+def app(version, program_file, compile_string, ast, tokens, sema, ll, wasm, verbose):
     """
     raccoon.py samples/test.co --ast
     """
@@ -31,11 +36,13 @@ def app(version, program_file, compile_string, ast, tokens, sema):
 
     elif program_file:
         output_type = ArgumentHandler.get_output_type()
-        ArgumentHandler.compile_file(program_file, output_type=output_type)
+        compiler_opts = ArgumentHandler.get_compiler_options()
+        ArgumentHandler.compile_file(program_file, output_type, compiler_opts)
 
     elif compile_string:
         output_type = ArgumentHandler.get_output_type()
-        ArgumentHandler.compile_code(compile_string, output_type=output_type)
+        compiler_opts = ArgumentHandler.get_compiler_options()
+        ArgumentHandler.compile_code(compile_string, output_type, compiler_opts)
 
     else:
         click.echo(ctx.get_help())

@@ -4,8 +4,15 @@ TODO:
     - Module documentation.
 """
 
+from collections import namedtuple
 from copy import deepcopy
+from compiler.visitor import Visitor
+from compiler.options import CompilerOptions
+from compiler.semantic.declarations import (
+    FunctionDeclVisitor
+)
 from compiler.parser.ast import (
+    Null,
     Identifier,
     Integer,
     Float,
@@ -15,6 +22,9 @@ from compiler.parser.ast import (
     ByteString,
     PrefixedString,
     Operator,
+    AssignmentStatement,
+    Function,
+    Class,
 )
 
 
@@ -25,55 +35,64 @@ class SemanticAnalyzer:
     It calls three important visitors which do the bulk of the work.
 
     - TokenExtractionVisitor
+
     - MainSemanticVisitor
+
     - InstantiationVisitor
     """
 
-    def __init__(self, parser, ast):
-        self.parser = parser
+    def __init__(self, ast, tokens, compiler_opts=CompilerOptions()):
         self.ast = ast
+        self.tokens = tokens
+        self.compiler_opts = compiler_opts
 
     def analyze(self):
         """
-        TODO: documentation
+        Calls the different visitors that analyze the AST for semantic correctness and generates a
+        lowered ast for codegen phase.
         """
 
-        tokens_visitor = TokenExtractionVisitor(self.parser, self.ast)
-        tokens_visitor.start_visit()
+        relevant_tokens = TokenExtractionVisitor(self.ast, self.tokens).start_visit()
+        self.tokens = []  # Free old tokens
 
-        print("::: ast ::: \n", self.ast, '\n')
-        print("::: saved tokens :::\n", tokens_visitor.tokens, '\n')
-        print("::: reset parser :::\n", tokens_visitor.parser, '\n')
+        if self.compiler_opts.verbose:
+            print("============ relevant_tokens ============\n", relevant_tokens, "\n")
 
-        main_visitor = MainSemanticVisitor(self.ast)
-        main_visitor.start_visit()
+        semantic_values = MainSemanticVisitor(self.ast, relevant_tokens).start_visit()
+
+        if self.compiler_opts.verbose:
+            print("============ semantic_values ============\n", semantic_values, "\n")
+
+        lowered_ast = InstantiationVisitor(self.ast, semantic_values).start_visit()
+
+        if self.compiler_opts.verbose:
+            print("============ lowered_ast ============\n", lowered_ast, "\n")
+
+        return lowered_ast
 
 
-class TokenExtractionVisitor:
+class TokenExtractionVisitor(Visitor):
     """
     This visitor class walks a Raccoon's AST, given a token list, extracts the tokens that are
-    referenced by the AST and frees parser resources.
-
-    List of what the visitor does:
-
-    - Get tokens referenced by AST
-
-    - Resets parser
+    referenced by the AST.
     """
 
-    def __init__(self, parser, ast):
-        self.parser = parser
+    def __init__(self, ast, tokens):
         self.ast = ast
-        self.tokens = {}
+        self.tokens = tokens
+        self.relevant_tokens = {}
 
     def start_visit(self):
         self.ast.accept(self)
-        self.parser.reset()
+        self.tokens = None  # Free tokens
+        return self.relevant_tokens
 
     def act(self, visitable):
         """
-        Called by the visitable. This is where the operations take place.
+        Called by the visitable.
         """
+
+        type_ = type(visitable)
 
         base_types = {
             Identifier,
@@ -86,38 +105,35 @@ class TokenExtractionVisitor:
             PrefixedString,
         }
 
-        type_ = type(visitable)
-
         if type_ in base_types:
             index = visitable.index
-            self.tokens[index] = deepcopy(self.parser.tokens[index])
+            self.relevant_tokens[index] = deepcopy(self.tokens[index])
 
         elif type_ == Operator:
             first_idx = visitable.op
-            self.tokens[first_idx] = deepcopy(self.parser.tokens[first_idx])
+            self.relevant_tokens[first_idx] = deepcopy(self.tokens[first_idx])
 
             if (second_idx := visitable.rem_op) is not None:
-                self.tokens[second_idx] = deepcopy(self.parser.tokens[second_idx])
+                print(f">>> second_idx = {second_idx}")
+                self.relevant_tokens[second_idx] = deepcopy(self.tokens[second_idx])
 
         return True
 
 
-class MainSemanticVisitor:
+class MainSemanticVisitor(Visitor):
     """
-    This visitor class walks a Raccoon's AST, gathers important information about the
-    program and checks for some semantic validity.
+    This visitor class walks a Raccoon's AST, gathers important information about the program and
+    checks for some semantic validity.
 
     Making it do a lot in a single pass is an intentional design for preformance.
 
-    List of what the visitor does:
-
-    - Canonicalizes literal
+    List of things the visitor does:
 
     - Creates a symbol table
 
     - Saves variable declarations
 
-    - Saves function deaclarations
+    - Saves function declarations
         - Checks for argument name conflict
 
     - Saves type declarations
@@ -133,21 +149,90 @@ class MainSemanticVisitor:
         - Check argument positions and type restrictions
 
     - Declares type instances
+        - Check recursive instantiation
+
+    - Check elements in wrong context
+        - Check for certain flow statements at top level
 
     - Tracks variable-object lifetimes
     """
 
-    def __init__(self, ast):
-        self.visit_deep = False
+    def __init__(self, ast, tokens):
         self.ast = ast
+        self.tokens = tokens
         self.symbol_table = {}
         self.current_scope = ""
+        self.function_frames = []
+        self.type_frames = []
+        self.function_instances = []
+        self.type_instances = []
 
     def start_visit(self):
         self.ast.accept(self)
+        SemanticValues = namedtuple(
+            "SemanticValues",
+            "function_frames type_frames function_instances type_instances",
+        )
+        return SemanticValues(
+            self.function_frames,
+            self.type_frames,
+            self.function_instances,
+            self.type_instances,
+        )
 
     def act(self, visitable):
         """
-        Called by the visitable. This is where the operations take place.
+        Called by the visitable.
         """
-        pass
+        type_ = type(visitable)
+
+        if type_ == AssignmentStatement:
+            pass
+
+        elif type_ == Function:
+            pass
+
+        elif type_ == Class:
+            pass
+
+        return True
+
+
+class InstantiationVisitor(Visitor):
+    """
+    This visitor class walks a Raccoon's AST, creates instantiations of functions and types
+    and link modules together.
+
+    List of things the visitor does:
+
+    - Create function instantiations
+        - Check methods exist on types
+
+    - Create function impl frame for lib
+
+    - Create type impl frame for lib
+
+    - Create type instantiations
+
+    - Link modules
+
+    - Canonicalize literal
+    """
+
+    def __init__(self, ast, semantic_values):
+        self.ast = ast
+        self.function_frames = semantic_values.function_frames
+        self.type_frames = semantic_values.type_frames
+        self.function_instances = semantic_values.function_instances
+        self.type_instances = semantic_values.type_instances
+
+    def start_visit(self):
+        self.ast.accept(self)
+        return None
+
+    def act(self, visitable):
+        """
+        Called by the visitable.
+        """
+
+        return True

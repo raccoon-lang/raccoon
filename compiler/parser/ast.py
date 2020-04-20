@@ -231,7 +231,7 @@ class PrefixedString(AST):
 
 
 class Operator(AST):
-    def __init__(self, op, rem_op=Null()):
+    def __init__(self, op, rem_op=None):
         self.op = op
         self.rem_op = rem_op  # For when operator spans two tokens like `not in`
 
@@ -481,7 +481,7 @@ class AwaitedExpr(AST):
 
 
 class WithArgument(AST):
-    def __init__(self, expr, name=None):
+    def __init__(self, expr, name=Null()):
         self.expr = expr
         self.name = name
 
@@ -720,7 +720,6 @@ class Globals(AST):
 
     def accept_on_children(self, visitor):
         [name.accept(visitor) for name in self.names]
-        [statement.accept(visitor) for statement in self.exprs]
 
 
 class NonLocals(AST):

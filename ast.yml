@@ -1,0 +1,277 @@
+AST: []
+
+Null: []
+
+Newline:
+  - index
+
+Indent:
+  - index
+
+Dedent:
+  - index
+
+Identifier:
+  - index
+
+Integer:
+  - index
+
+Float:
+  - index
+
+ImagInteger:
+  - index
+
+ImagFloat:
+  - index
+
+String:
+  - index
+
+StringList:
+  - strings
+
+ByteString:
+  - index
+
+PrefixedString:
+  - index
+
+Operator:
+  - op
+  - rem_op # For when operator spans two tokens like `not in`
+
+UnaryExpr:
+  - expr
+  - op
+
+BinaryExpr:
+  - lhs
+  - op
+  - rhs
+
+FuncParam:
+  - name
+  - type_annotation
+  - default_value_expr
+
+PositionalParamsSeparator: []
+
+FuncParams:
+  - params
+  - tuple_rest_param
+  - keyword_only_params
+  - named_tuple_rest_param
+
+Function:
+  - name
+  - body
+  - params
+  - return_type_annotation
+  - generics_annotation
+  - is_async
+  - decorators
+
+TupleRestExpr:
+  - expr
+
+NamedTupleRestExpr:
+  - expr
+
+Comprehension:
+  - expr
+  - key_expr
+  - var_expr
+  - iterable_expr
+  - comprehension_type
+  - where_expr
+  - is_async
+  - nested_comprehension
+
+Yield:
+  - exprs
+  - is_yield_from
+
+Dict:
+  - key_value_pairs
+
+Set:
+  - exprs
+
+List:
+  - exprs
+
+Tuple:
+  - exprs
+
+SubscriptIndex:
+  - from_expr
+  - skip_expr
+  - to_expr
+
+Subscript:
+  - expr
+  - indices
+
+Call:
+  - expr
+  - arguments
+
+Field:
+  - expr
+  - field
+
+Bool:
+  - is_true
+
+NoneLiteral: []
+
+Argument:
+  - expr
+  - name
+
+AwaitedExpr:
+  - expr
+
+WithArgument:
+  - expr
+  - name
+
+WithStatement:
+  - arguments
+  - body
+  - is_async
+
+Except:
+  - argument
+  - name
+  - body
+
+TryStatement:
+  - try_body
+  - except_clauses
+  - else_body
+  - finally_body
+
+ForStatement:
+  - var_expr
+  - iterable_expr
+  - body
+  - else_body
+  - where_expr
+  - is_async
+
+WhileStatement:
+  - cond_expr
+  - body
+  - else_body
+  - where_expr
+
+Elif:
+  - cond_expr
+  - body
+
+IfStatement:
+  - cond_expr
+  - if_body
+  - elifs
+  - else_body
+
+IfExpr:
+  - if_expr
+  - cond_expr
+  - else_expr
+
+NamedExpression:
+  - name
+  - expr
+
+GenericType:
+  - generic_type
+  - specialization_types
+
+FunctionType:
+  - return_type
+  - param_types
+
+ListType:
+  - types
+
+TupleType:
+  - types
+
+Type:
+  - type
+
+IntersectionType:
+  - types
+
+UnionType:
+  - types
+
+GenericsAnnotation:
+  - types
+
+Class:
+  - name
+  - body
+  - parent_classes
+  - generics_annotation
+  - decorators
+
+ListLHS:
+  - exprs
+
+TupleLHS:
+  - exprs
+
+Globals:
+  - names
+
+NonLocals:
+  - names
+
+AssertStatement:
+  - cond_expr
+  - message_expr
+
+PassStatement: []
+
+BreakStatement: []
+
+ContinueStatement: []
+
+ReturnStatement:
+  - exprs
+
+RaiseStatement:
+  - expr
+  - from_expr
+
+AssignmentStatement:
+  - lhses
+  - assignment_op
+  - value_expr
+  - type_annotation
+
+MainPath:
+  - path_names
+  - relative_level
+  - alias
+
+SubPath:
+  - is_import_all
+  - path_names
+  - alias
+
+ImportStatement:
+  - main_path
+  - sub_paths
+
+Decorator:
+  - path_names
+  - arguments
+
+Program:
+  - statements
