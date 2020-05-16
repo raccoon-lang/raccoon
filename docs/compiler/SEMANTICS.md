@@ -88,12 +88,12 @@
 
     - WRONG CONTEXT
 
-        For certain tokens that the parser allowed through but exist in the wrong context
+        For certain tokens that the parser allowed through but exist in the wrong context.
 
         ##### AFFECTED ELEMENTS
-        - yield statement
-        - return statement
-        - rest expression
+        - control flow primitives and other stuff at class level
+        - control flow primitives at top-level
+        - return and yield in top-level control constructs
 
 
 - RESTRICTIONS
@@ -143,6 +143,10 @@
         ##### AFFECTED ELEMENTS
         - functions
 
+
+- INTEGRITY
+
+    ##### TYPES
     - RECURSIVE REDUCTION OR EXPANSION
 
         When a static construct is able to break static guarantees like its length through recursion or loops.
@@ -167,6 +171,10 @@
 
         #### AFFECTED ELEMENTS
         - macros
+
+    - GENERATOR
+
+        TODO
 
 - EXTENSIONS [FUTURE]
 
@@ -244,13 +252,18 @@
         """
         ```
 
+- Imports
+
+    - Exporting imports
+
+        In Raccoon, only imports defined `__init__.ra` files get re-exported. For regular source files, imports don't get re-exported. Also when this file is defined on a folder, the source files from folder can only be imported via the `__init__.ra` interface.
 
 - Lists
 
     - Uninitialized list
 
         ```py
-        ls = [] # ls: [str]
+        ls = [] # ls: [Any] eventually [str]
 
         def func(ls):
             ls.append('hi')
@@ -258,23 +271,7 @@
         func(ls)
         ```
 
-        If a list is uninitialized, we wait until it is first used. Its type is inferred based on how it is used.
-
-        However if one needs an any list, the type needs to be specified upfront.
-
-        ```py
-        ls: [Any] = []
-
-        ls.append(Person("John"))
-        ls.append(Cat("Sam"))
-        ```
-
-        An empty list can be used. It has a type `[Any]`.
-
-        ```py
-        ls = []
-
-        print(ls, type(ls)) # [], [Any]
+        If a list is uninitialized, it becomes an Any list.
         ```
 
 
@@ -304,33 +301,128 @@
 
         #### IMPLEMENTATION
 
-        A local variable can be shadowed. In the above example, the second `num` is a totally different variable from the first `num`. However, global variables and fields cannot be shadowed.
+        Variable can refer to a new type after declaration. In the above example, the second `num` is a totally different variable from the first `num`.
+
+- Dynamic dispatch
+
+    ```py
+    class A:
+        def foo(self):
+            return 1
+
+    class B:
+        def foo(self):
+            return "Hello"
+
+    if runtime_condition():
+        x = A()
+    else:
+        x = B()
+
+    """
+    x: A | B
+    """
+
+    y = x.foo()
+
+    """
+    y: int | str
+    """
+
+    """
+    DISPATCH
+
+    class IntStr:
+        def __init__(self, type_id):
+            self.type_id = type_id
+            self.union = @union(int | str)
+
+    match x.type_id:
+        case 0: y = unsafe_cast.[A](x).foo()
+        case 1: y = unsafe_cast.[B](x).foo()
+    """
+    ```
+
+- Method Resolution Order
+
+    It is quite simple. No C3 linearization, instead we rely on the order in which super types are defined. Types from inherited modules are given types first.
+    And types and their subtypes follow each other in ranking. This means type_ids are constantly updated to meet the requirements mentioned here.
 
 
-- Fields
+    ```py
+    class A:
+        def foo(self):
+            return 1
 
-    - Adding new fields
-        ```py
-        class Person:
-            def __init__(self, name):
-                self.name = name
+    class B(A):
+        pass
 
-        john = Person("John")
-        john.age = 45
-        ```
+    class C(A):
+        def foo(self):
+            return 2
 
-        ##### IMPLEMENTATION
+    class D(B, C):
+        pass
 
-        The fields of an object is the collection of fields attached to the object through its entire lifetime. The only exception is global variables. They can't be given new fields.
+    d = D()
+    d.foo() # => 2
 
-        ```py
-        """
-        john: { name: str, age: int }
-        """
-        ```
+    class F:
+        pass
 
+    class E(C, B):
+        pass
+
+    e = E()
+    e.foo() # => 2
+
+    """
+    A: 1
+    B: 2
+    C: 3
+    D: 4
+    E: 5
+    F: 6
+    """
+    ```
+
+    With this it is possible to check an objects supertype by checking on a range.
 
 - Generators
+
+    ```py
+    def generator(count):
+        yield "Hello"
+
+        for i in range(count):
+            yield i
+
+    """
+    def generator(count, ptr vars):
+        (
+            next_cursor,
+            tmp0,
+            tmp1
+        ) = vars
+
+        match next_cursor:
+            case 0:
+                return "Hello"
+            case 1:
+                tmp0 = range(count)
+                tmp1 = tmp_0.next()
+                if tmp1:
+                    next_cursor += 1
+                    return tmp1
+            case 2:
+                tmp1 = tmp_0.next()
+                if tmp1:
+                    next_cursor += 1
+                    return tmp1
+            case _:
+                pass
+    """
+    ```
 
 - Closures
 
@@ -573,27 +665,29 @@
             a: { type_id: uint, obj: ptr _ },
             b: { type_id: uint, obj: ptr _ },
         ):
-            # type_ids are localized to benefit from computed gotos.
-            @goto a.type_id:
-                @label "::Dog":
-                    a = * unsafe_cast.[Dog](obj)
-                @label "::Person":
-                    a = * unsafe_cast.[Person](obj)
+            match a.type_id:
+                case 20:
+                    a = unsafe_cast.[Dog](obj)
+                case 21:
+                    a = unsafe_cast.[Person](obj)
                 ...
 
-            @goto b.type_id:
-                @label "::Dog":
-                    a = * unsafe_cast.[Dog](obj)
-                @label "::Person":
-                    a = * unsafe_cast.[Person](obj)
+            match b.type_id:
+                case 31:
+                    a = unsafe_cast.[Dog](obj)
+                case 32:
+                    a = unsafe_cast.[Person](obj)
                 ...
 
             print(f"{a.name} meets {b.name}")
+
+        OR CREATING A MAP AT THE POINT OF CREATION
+
         """
 
     #### IMPLEMENTATION
 
-    Raccoon is all about structural typing. It sees type unsafety and covariance as union types and inheritance as intersection types.
+    Raccoon is all about structural typing. It sees type unsafety and covariance as union types.
 
 - Introspection
 

@@ -1,6 +1,6 @@
-from compiler.lexer.lexer import Lexer
-from compiler.parser.parser import Parser
-from compiler.codegen.llvm.codegen import LLVMCodegenVisitor
+from compiler.lexer import Lexer
+from compiler.parser import Parser
+from compiler.codegen import LLVMCodegenVisitor
 
 code = '''
 def add(a: int, b: int) -> int:

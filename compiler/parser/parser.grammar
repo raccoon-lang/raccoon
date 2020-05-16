@@ -133,11 +133,11 @@ rest_indentable_expr =
 rest_indentable_exprs =
     | rest_indentable_expr (',' rest_indentable_expr)* ','?
 
-comprehension_where = # Diverges from Python's `comp_if`
-    | 'where' (named_expr | indentable_exprs)
+comprehension_if = # Diverges from Python's `comp_if`
+    | 'if' (named_expr | indentable_exprs)
 
 sync_comprehension_for =
-    | 'for' for_lhs 'in' indentable_expr comprehension_where?
+    | 'for' for_lhs 'in' indentable_expr comprehension_if?
 
 comprehension_for =
     | 'async'? sync_comprehension_for ('async'? sync_comprehension_for)*
@@ -219,14 +219,14 @@ finally_clause =
 try_statement =
     | 'try' ':' func_suite (except_clause+ else_clause? finally_clause? | finally_clause)
 
-where_clause =
-    | 'where' (named_expr | expr)
+for_if_expr =
+    | 'if' (named_expr | expr)
 
 for_statement =
-    | 'for' for_lhs 'in' exprs where_clause? ':' func_suite else_clause?
+    | 'for' for_lhs 'in' exprs for_if_expr? ':' func_suite else_clause?
 
 while_statement =
-    | 'while' named_expr_or_test where_clause? ':' func_suite else_clause?
+    | 'while' named_expr_or_test for_if_expr? ':' func_suite else_clause?
 
 elif_clause =
     | 'elif' named_expr_or_test ':' func_suite
@@ -268,12 +268,8 @@ identifiers =
 generics_annotation =
     | '[' identifiers ']'
 
-class_suite = # Diverges from Python's `suite` # When `string+` has more than one `string` it gets compiled as a stringlist.
-    | assignment_statement
-    | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string | newline)+ dedent
-
 class_def = # Divergence from Python's `arglist`
-    | 'class' identifier generics_annotation? ('(' identifiers ')')? ':' class_suite
+    | 'class' identifier generics_annotation? ('(' identifiers ')')? ':' func_suite
 
 lhs_argument_trailer =
     | '[' subscripts ']'

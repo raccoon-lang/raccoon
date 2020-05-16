@@ -5,7 +5,24 @@
     Symbols used in the symbol table are already mangled.
 
     ```
-    [module].[function].[var]
-    [module].[function]...int.str.void
-    [module].[function]...T.U...int.T.U
+    functools.map(int,(int)->str)->[str]
+    functools.filter([int],(int)->bool)->[int]
     ```
+
+
+- LOWERING
+
+    #### FOR LOOPS
+    
+    ```py
+    for x in iter:
+        print(x)
+    ```
+
+    ```py
+    x = iter.next()
+    while type(x) != StopIteration:
+        print(x)
+        x = iter.next()
+    ```
+

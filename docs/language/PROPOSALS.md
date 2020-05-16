@@ -3,6 +3,24 @@ However, it will be nice to have Raccoon not diverge from Python too much
 
 ## POSSIBLE ADDITIONS
 
+- Calling C
+
+    ```py
+    @extern('C')
+    def sleep(seconds: i32) -> i32
+    ```
+
+    `extern` block
+
+    ```py
+    @extern('C'):
+        def sleep(seconds: i32) -> i32
+        def echo(chars: ptr char, len: i32)
+
+    ```
+
+    When declaring a C function, types are required because the interface expects types
+
 - Multiline lambda [In Progress]
 
     ```py
@@ -94,14 +112,6 @@ However, it will be nice to have Raccoon not diverge from Python too much
     4(n) == 8
     ```
 
-- Where clause [In Progress]
-
-    ```py
-    for i in range(21) where i % 2:
-        print(i)
-
-    [i for i in ls where i > 5]
-    ```
 
 - Revamped type annotation & Generics [In Progress]
 
@@ -130,9 +140,6 @@ However, it will be nice to have Raccoon not diverge from Python too much
     # Union type
     identity: int | str = 'XNY7V40'
 
-    # Intersection type
-    pegasus: Horse & Bird = Pegasus()
-
     # Type reltionship
     Person < Mammal
     Mammal > Person
@@ -140,16 +147,15 @@ However, it will be nice to have Raccoon not diverge from Python too much
 
     # Generics
     class Person[T, U](A, B) where T < Person:
-        def __init__(self, name: T):
+        def __init__(self, name: T, age: U):
             self.name = name
+            self.age = age
 
-        def __eq__(self, name: T, other_name: U):
-            return name == other_name
+    jane = Person[str, int]('Jane Doe', 45)
 
-    def get_person[T](name: T) where T < Person:
-        return Person.[T](name)
-
-    jane = get_person.[str]('Jane Doe')
+    class StaticArray[const N, T]:
+        def __init__(self):
+            self.buffer = Buffer[N, T]()
     ```
 
 - More operators [In Progress]
@@ -216,24 +222,6 @@ However, it will be nice to have Raccoon not diverge from Python too much
     def display(str)
     ```
 
-- Calling C
-
-    ```py
-    @extern('C')
-    def sleep(seconds: i32) -> i32
-    ```
-
-    `extern` block
-
-    ```py
-    @extern('C'):
-        def sleep(seconds: i32) -> i32
-        def echo(chars: ptr char, len: i32)
-    ```
-
-    When declaring a C function, types are required because the interface expects types
-
-
 - Type alias
 
     ```py
@@ -279,24 +267,6 @@ However, it will be nice to have Raccoon not diverge from Python too much
 
     codepoint = ord(ch) if ch else None
     codepoint = ord(ch?)
-    ```
-
-- Revamped enums (ADTs)
-
-    ```py
-    enum Option[T]:
-        Ok(value: T)
-        Err()
-        None
-
-    identity: Option[str] = Option.None
-
-    match identity:
-        case Option.Some(value): value
-        case Option.Err(): raise Exception()
-        case _: pass
-
-    identity: int | str = 'XNY7V40'
     ```
 
 - Additional reserved keywords
@@ -440,14 +410,6 @@ However, it will be nice to have Raccoon not diverge from Python too much
     binf = 0b11.3e+1
     ```
 
-- Vectorization
-
-    ```py
-    result = apply.(array, double)
-    result = apply.[int].(array, double)
-    result = A .* B
-    ```
-
 - Underscore meaning discarded value or unprovided value
 
     ```py
@@ -462,17 +424,50 @@ However, it will be nice to have Raccoon not diverge from Python too much
     f = add(2, _)
     ```
 
+- Revamped enums (ADTs)
+
+    ```py
+    enum Option[T]:
+        Ok(value: T)
+        None
+
+    identity: Option[str] = Option.None
+
+    match identity:
+        case Some(value): value
+        case Err: raise Exception()
+        case _: pass
+
+    identity: int | str = 'XNY7V40'
+    ```
+
 - Revamped abstract classes
 
     ```py
-    abstract class Observable:
+    abstract Observable:
         abstract subscriptions: [Subscription]
-
+        
         abstract def notify()
         abstract def add_subscription(sub: Subcription)
     ```
 
-- Inline Assembly
+- Revamped data classes
+
+    Maybe look for another keyword
+
+    ```py
+    data Pet(name, age):
+        def __str__(self):
+            return f"Pet(name={self.name}, age={self.age})"
+
+    data Person(name: str, age: int, bases=(Specie))
+    data Identity[T](id: T)
+
+    john = Person("John", 50)
+    id = Identity(504)
+    ```
+
+- Inline assembly
 
     ```py
     @asm(arch="x86", syntax="intel"):
@@ -481,20 +476,5 @@ However, it will be nice to have Raccoon not diverge from Python too much
         mov [var], ebx      ; Move the contents of EBX into the 4 bytes at memory address var. (Note, var is a 32-bit constant).
         mov eax, [esi-4]    ; Move 4 bytes at memory address ESI + (-4) into EAX
         mov [esi+eax], cl   ; Move the contents of CL into the byte at address ESI+EAX
-        mov edx, [esi+4*ebx]
         """
-    ```
-
-- Struct
-
-    Struct objects are saved on the stack.
-
-    ```py
-    struct Person:
-        def __init__(self, name, age):
-            self.name = name
-            self.age = age
-
-    john = Person("John", 58)
-    print(john.name)
     ```

@@ -4,11 +4,11 @@ import subprocess
 from os import path
 import click
 from sys import argv
-from compiler.lexer.lexer import Lexer
-from compiler.parser.parser import Parser
-from compiler.options import CompilerOptions
-from compiler.semantic.semantic import SemanticAnalyzer
-from compiler.codegen.llvm.codegen import LLVMCodegenVisitor
+from compiler import CompilerOptions
+from compiler.lexer import Lexer
+from compiler.parser import Parser
+from compiler.semantic import SemanticAnalyzer
+from compiler.codegen import LLVMCodegenVisitor
 
 
 class ArgumentHandler:

@@ -38,6 +38,10 @@ ByteString:
 PrefixedString:
   - index
 
+
+# ----------------
+
+
 Operator:
   - op
   - rem_op # For when operator spans two tokens like `not in`
@@ -250,10 +254,11 @@ RaiseStatement:
   - from_expr
 
 AssignmentStatement:
-  - lhses
-  - assignment_op
+  - lhses:
+  - assignment_op: Operator
   - value_expr
   - type_annotation
+
 
 MainPath:
   - path_names

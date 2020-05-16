@@ -1,14 +1,21 @@
 """
-Declares a base Visitor class.
 """
 
+from abc import ABC, abstractmethod
 
-class Visitor:
+
+class Visitor(ABC):
     """
-    Base Visitotr class
     """
+
+    @abstractmethod
     def start_visit(self):
+        """
+        """
         pass
 
+    @abstractmethod
     def act(self, visitable):
-        return False
+        """
+        """
+        pass

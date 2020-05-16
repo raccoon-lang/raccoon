@@ -6,6 +6,8 @@
 
 <h1 align="center">RACCOON</h1>
 
+:warning: This project is experimental and in active development :warning:
+
 ### INTRODUCTION
 Raccoon is a language with Python 3.x syntax that is amenable to static analysis. The repository both defines the spec of the language and contains a reference implementation of the compiler.
 
@@ -77,7 +79,7 @@ You can check [samples folder](#samples) for more examples.
 
     ------
 
-    You can also get the binaries of the various platform [here](https://github.com/llvm/llvm-project/releases/tag/llvmorg-8.0.1)
+    You can also get the binaries for various platforms [here](https://github.com/llvm/llvm-project/releases/tag/llvmorg-8.0.1)
     </p>
     </details>
 

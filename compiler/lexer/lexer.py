@@ -24,6 +24,7 @@ GUIDELINES:
 """
 
 from enum import Enum
+from compiler.errors import LexerError
 from compiler.options import CompilerOptions
 from compiler.lexer.valid import (
     is_horizontal_space,
@@ -44,6 +45,8 @@ class Indentation:
     """
     This class holds top-level indentation information as well as indentation information of code in
     brackets
+
+    TODO: More doc.
     """
 
     def __init__(self, open_bracket=None, start_indentation_count=0):
@@ -69,6 +72,8 @@ class Block:
     """
     This represents a block of code introduced by a colon and an indent within brackets.
     A block can be the body content of a lambda or a match expression.
+
+    TODO: More doc.
     """
 
     def __init__(self, start_indentation_count):
@@ -136,27 +141,13 @@ class IndentSpaceKind(Enum):
     TAB = 2
 
 
-class LexerError(Exception):
-    """ Represents the error the lexer can raise """
-
-    def __init__(self, message, row, column):
-        super().__init__(f"(line: {row}, col: {column}) {message}")
-        self.message = message  # Added because it is missing after super init
-        self.row = row
-        self.column = column
-
-    def __repr__(self):
-        return (
-            f'LexerError(message="{self.message}", row={self.row}'
-            f", column={self.column})"
-        )
-
-
 class Lexer:
     """
     Takes a UTF-8 encoded file and tries to tokenize it following Raccoon's grammmar.
 
     TODO: Normalize (using NFKC normalization form) the codepoints
+    TODO: only 2 and 4 space indentation support
+    TODO: only 1 tab indentation support
     """
 
     def __init__(self, code, compiler_opts=CompilerOptions()):
@@ -670,6 +661,10 @@ class Lexer:
                         self.indentations.pop()
 
                 # Detecting a top-level block in brackets
+                # How would the following handled?
+                #   foo(array[1:
+                #       20])
+                # It is a syntax error, even in Python.
                 if self.is_in_brackets and not indentation.block and char == ':':
                     offset = 0
                     is_block = False

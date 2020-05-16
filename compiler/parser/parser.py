@@ -14,9 +14,9 @@ GUIDELINES:
 """
 
 from functools import wraps
-from compiler.lexer.lexer import TokenKind
-from compiler.options import CompilerOptions
-from .ast import (
+from compiler.lexer import TokenKind
+from compiler import CompilerOptions
+from compiler.ast import (
     Null,
     Newline,
     Indent,
@@ -90,22 +90,6 @@ from .ast import (
     Decorator,
     Program,
 )
-
-
-class ParserError(Exception):
-    """ Represents the error the parser can raise """
-
-    def __init__(self, message, row, column):
-        super().__init__(f"(line: {row}, col: {column}) {message}")
-        self.message = message  # Added because it is missing after super init
-        self.row = row
-        self.column = column
-
-    def __repr__(self):
-        return (
-            f'ParserError(message="{self.message}", row={self.row}'
-            f", column={self.column})"
-        )
 
 
 class Parser:
@@ -1040,12 +1024,12 @@ class Parser:
 
     @backtrackable
     @memoize
-    def comprehension_where(self):
+    def comprehension_if(self):
         """
-        rule = 'where' (named_expr | indentable_exprs)
+        rule = 'if' (named_expr | indentable_exprs)
         """
 
-        if self.consume_string("where") is not None:
+        if self.consume_string("if") is not None:
             if (named_expr := self.indentable_expr()) is not None:
                 return named_expr
 
@@ -1058,7 +1042,7 @@ class Parser:
     @memoize
     def sync_comprehension_for(self):
         """
-        rule = 'for' for_lhs 'in' indentable_expr comprehension_where?
+        rule = 'for' for_lhs 'in' indentable_expr comprehension_if?
         """
 
         result = None
@@ -1071,8 +1055,8 @@ class Parser:
         ):
             result = Comprehension(None, var_expr, iterable_expr)
 
-            if (comprehension_where := self.comprehension_where()) :
-                result.where_expr = comprehension_where
+            if (comprehension_if := self.comprehension_if()) :
+                result.for_if_expr = comprehension_if
 
         return result
 
@@ -1690,12 +1674,12 @@ class Parser:
 
     @backtrackable
     @memoize
-    def where_clause(self):
+    def for_if_expr(self):
         """
         rule = 'where' (named_expr | expr)
         """
 
-        if self.consume_string("where") is not None:
+        if self.consume_string("if") is not None:
             if (named_expr := self.named_expr()) is not None:
                 return named_expr
 
@@ -1708,7 +1692,7 @@ class Parser:
     @memoize
     def for_statement(self):
         """
-        rule = 'for' for_lhs 'in' exprs where_clause? ':' func_suite else_clause?
+        rule = 'for' for_lhs 'in' exprs for_if_expr? ':' func_suite else_clause?
         """
 
         if (
@@ -1717,14 +1701,14 @@ class Parser:
             and self.consume_string("in") is not None
             and (iterable_expr := self.exprs()) is not None
         ):
-            where_clause = self.where_clause() or Null()
+            for_if_expr = self.for_if_expr() or Null()
 
             if (
                 self.consume_string(":") is not None
                 and (body := self.func_suite()) is not None
             ):
                 else_body = self.else_clause() or []
-                return ForStatement(lhs, iterable_expr, body, else_body, where_clause)
+                return ForStatement(lhs, iterable_expr, body, else_body, for_if_expr)
 
         return None
 
@@ -1732,21 +1716,21 @@ class Parser:
     @memoize
     def while_statement(self):
         """
-        rule = 'while' named_expr_or_test where_clause? ':' func_suite else_clause?
+        rule = 'while' named_expr_or_test for_if_expr? ':' func_suite else_clause?
         """
 
         if (
             self.consume_string("while") is not None
             and (cond_expr := self.named_expr_or_test()) is not None
         ):
-            where_clause = self.where_clause() or Null()
+            for_if_expr = self.for_if_expr() or Null()
 
             if (
                 self.consume_string(":") is not None
                 and (body := self.func_suite()) is not None
             ):
                 else_body = self.else_clause() or []
-                return WhileStatement(cond_expr, body, else_body, where_clause)
+                return WhileStatement(cond_expr, body, else_body, for_if_expr)
 
         return None
 
@@ -2039,6 +2023,7 @@ class Parser:
     @memoize
     def class_suite(self):
         """
+        TODO: Now unused
         rule =
             | assignment_statement
             | indent (import_statement | assignment_statement | class_def | async_func_def | func_def | all_string | newline)+ dedent
@@ -2091,7 +2076,7 @@ class Parser:
     @memoize
     def class_def(self):
         """
-        rule = 'class' identifier generics_annotation? ('(' identifiers ')')? ':' class_suite
+        rule = 'class' identifier generics_annotation? ('(' identifiers ')')? ':' func_suite
         """
 
         if (
@@ -2111,7 +2096,7 @@ class Parser:
 
             if (
                 self.consume_string(":") is not None
-                and (body := self.class_suite()) is not None
+                and (body := self.func_suite()) is not None
             ):
                 return Class(name, body, parent_classes, generics_annotation)
 

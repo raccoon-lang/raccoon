@@ -347,7 +347,7 @@ class Comprehension(AST):
         iterable_expr,
         key_expr=Null(),
         comprehension_type=ComprehensionType.GENERATOR,
-        where_expr=Null(),
+        for_if_expr=Null(),
         is_async=False,
         nested_comprehension=Null(),
     ):
@@ -356,7 +356,7 @@ class Comprehension(AST):
         self.var_expr = var_expr
         self.iterable_expr = iterable_expr
         self.comprehension_type = comprehension_type
-        self.where_expr = where_expr
+        self.for_if_expr = for_if_expr
         self.is_async = is_async
         self.nested_comprehension = nested_comprehension
 
@@ -365,7 +365,7 @@ class Comprehension(AST):
         self.key_expr.accept(visitor)
         self.var_expr.accept(visitor)
         self.iterable_expr.accept(visitor)
-        self.where_expr.accept(visitor)
+        self.for_if_expr.accept(visitor)
         self.nested_comprehension.accept(visitor)
 
 
@@ -534,14 +534,14 @@ class ForStatement(AST):
         iterable_expr,
         body,
         else_body=Null(),
-        where_expr=Null(),
+        for_if_expr=Null(),
         is_async=False,
     ):
         self.var_expr = var_expr
         self.iterable_expr = iterable_expr
         self.body = body
         self.else_body = else_body
-        self.where_expr = where_expr
+        self.for_if_expr = for_if_expr
         self.is_async = is_async
 
     def accept_on_children(self, visitor):
@@ -549,21 +549,21 @@ class ForStatement(AST):
         self.iterable_expr.accept(visitor)
         [statement.accept(visitor) for statement in self.body]
         [statement.accept(visitor) for statement in self.else_body]
-        self.where_expr.accept(visitor)
+        self.for_if_expr.accept(visitor)
 
 
 class WhileStatement(AST):
-    def __init__(self, cond_expr, body, else_body=[], where_expr=Null()):
+    def __init__(self, cond_expr, body, else_body=[], for_if_expr=Null()):
         self.cond_expr = cond_expr
         self.body = body
         self.else_body = else_body
-        self.where_expr = where_expr
+        self.for_if_expr = for_if_expr
 
     def accept_on_children(self, visitor):
         self.cond_expr.accept(visitor)
         [statement.accept(visitor) for statement in self.body]
         [statement.accept(visitor) for statement in self.else_body]
-        self.where_expr.accept(visitor)
+        self.for_if_expr.accept(visitor)
 
 
 class Elif(AST):
@@ -742,18 +742,15 @@ class AssertStatement(AST):
 
 
 class PassStatement(AST):
-    def __init__(self):
-        pass
+    pass
 
 
 class BreakStatement(AST):
-    def __init__(self):
-        pass
+    pass
 
 
 class ContinueStatement(AST):
-    def __init__(self):
-        pass
+    pass
 
 
 class ReturnStatement(AST):

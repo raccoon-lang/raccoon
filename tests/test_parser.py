@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, Mock
-from compiler.parser.parser import Parser
-from compiler.parser.ast import (
+from compiler.parser import Parser
+from compiler.ast import (
     Null,
     Newline,
     Identifier,

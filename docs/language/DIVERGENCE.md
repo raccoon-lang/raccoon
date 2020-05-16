@@ -198,6 +198,8 @@
         func()
         ```
 
+    - Field types cannot be shadowed.
+
 - Integers
 
     - `int`s are represented as 64-bit signed integers.
@@ -234,7 +236,7 @@
                     return StopIteration()
         ```
 
-        For loops use StopIteration to halt iteration on iterables and None in the case of generators.
+        For loops use StopIteration to halt iteration on iterables. Generators are inherently interable.
 
 - Concurrency
 

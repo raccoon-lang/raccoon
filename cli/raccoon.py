@@ -1,4 +1,11 @@
 #! /usr/bin/env pipenv run -- python3
+
+"""
+TODO:
+    This module needs to work almost like the `poython` command but with some extensions.
+    For example, currently the -c option works differently from python's -c option.
+"""
+
 import click
 from argument_handler import ArgumentHandler
 

@@ -72,19 +72,18 @@
 
         set_global_deallocatable_ptr :: has objects it needs inner functions to deallocate
 
-        bar (c, a, d) { // knows nothing about parent function
+        bar (c, a, d) { // function call; knows nothing about parent function
             a <- c = Obj1() <- Obj3() :: reference cycle!
             e      = Obj5()
 
             free_owned_deallocatable :: e
 
-            qux (d) { // knows nothing about parent function
+            qux (d) { // function call; knows nothing about parent function
                 free_transferred_deallocatable :: d
             }
 
             # Transferred deallocatables are freed at the end of the scope.
-            # It is costly to deallocate them in the middle of the function.
-            # Pretty sure Swift does it the same way in realease mode.
+            # It is costly to deallocate them in the middle of the function because it has checks.
             free_transferred_deallocatable :: a, c
         }
     }
@@ -107,6 +106,8 @@
     }
     ```
 
+    In this case, `foo` lays out how it wants inner functions to deallocate its objects.
+
     ##### CAVEATS
     - Inner functions cannot deallocate arguments until scope ends.
 
@@ -115,7 +116,7 @@
 
     - Guarantees are broken if Raccoon code interoperates with non-Raccoon code.
 
-    - Objects shared between threads will need runtime fork-reference counting.
+    - Objects shared between threads will need runtime reference counting of forks.
 
 
     ##### HOW IT PREVENTS REFERENCE CYCLES
