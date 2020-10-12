@@ -97,7 +97,7 @@ lambda_param =
 
 lambda_params =
     | '(' func_params? ')'
-    | lambda_param (',' lambda_param)* (',' '*' lambda_param (',' lambda_param)*)? (',' '**' lambda_param)? ','?
+    | lambda_param (',' lambda_param)* (',' '/' (',' func_param)*)? (',' '*' lambda_param (',' lambda_param)*)? (',' '**' lambda_param)? ','?
     | '*' lambda_param (',' lambda_param)* (',' '**' lambda_param)? ','?
     | '**' lambda_param ','?
 
@@ -295,7 +295,7 @@ func_param =
     | identifier (':' type_annotation)? ('=' indentable_expr)?
 
 func_params =
-    | func_param (',' func_param)* (',' '*' func_param (',' func_param)*)? (',' '**' func_param)? ','?
+    | func_param (',' func_param)* (',' '/' (',' func_param)*)? (',' '*' func_param (',' func_param)*)? (',' '**' func_param)? ','?
     | '*' func_param (',' func_param)* (',' '**' func_param)? ','?
     | '**' func_param ','?
 

@@ -125,3 +125,46 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
 
 
 
+----------
+
+### SEMANTIC PROCESS
+
+```py
+symbol_table = [
+    { # scope 0
+        "typed": {
+            "var": SymbolInfo(
+                ast_ref=()
+            ),
+            "func": SymbolInfo(
+                ast_ref=(),
+            )
+        },
+        "untyped": {
+            "ls": SymbolInfo(
+                ast_ref=(),
+                list_type_indices=[]
+            ),
+        }
+    },
+]
+```
+
+
+#### Top Level
+
+#### Function Definition
+
+**Start of Function**
+- Check function name conflict with existing
+- Check params names conflict with each other
+- Check params types exist
+- Check generics annotation names conflict with each other
+- Check generics annotation names conflict with existing names
+- ...
+
+**Body of Function**
+-
+
+
+

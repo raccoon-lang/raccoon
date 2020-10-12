@@ -1,8 +1,6 @@
 """
 """
 
-from .assignment_stmt import AssignmentVisitor
-from .return_stmt import ReturnVisitor
 from compiler import Visitor
 from compiler.ast import (
     Null,
@@ -21,6 +19,9 @@ from compiler.ast import (
     ImportStatement,
     ReturnStatement,
 )
+from .func_params import (
+    FuncParamsVisitor,
+)
 
 
 class FunctionVisitor(Visitor):
@@ -38,11 +39,9 @@ class FunctionVisitor(Visitor):
         """
         """
 
+        data = FuncParamsVisitor(function.param, self.state).start_visit()
+
         for ast in function.body:
             type_ = type(ast)
-
-            if type_ == ReturnStatement:
-                result = ReturnVisitor(self.symbol_table).start_visit()
-                print('>>> function.return', result)
 
         return False

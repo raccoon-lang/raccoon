@@ -4,3 +4,4 @@ htmlcov
 .coverage
 **/.DS_Store
 **/.ipynb_checkpoints
+my_samples/

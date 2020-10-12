@@ -34,7 +34,6 @@ from compiler.ast import (
     BinaryExpr,
     IfExpr,
     FuncParam,
-    PositionalParamsSeparator,
     FuncParams,
     Function,
     TupleRestExpr,
@@ -677,7 +676,7 @@ class Parser:
         """
         rule =
             | '(' func_params? ')'
-            | lambda_param (',' lambda_param)* ('/', lambda_param (',' lambda_param)*)? (',' '*'
+            | lambda_param (',' lambda_param)* (',' '/', lambda_param (',' lambda_param)*)? (',' '*'
               lambda_param (',' lambda_param)*)? (',' '**' lambda_param)? ','?
             | '*' lambda_param (',' lambda_param)* (',' '**' lambda_param)? ','?
             | '**' lambda_param ','?
@@ -697,6 +696,7 @@ class Parser:
         self.revert(cursor, row, column)
         if (param := self.lambda_param()) is not None:
             params = [param]
+            positional_only_params = []
 
             self.register_revert()
             while self.revertable(
@@ -710,7 +710,8 @@ class Parser:
                 self.consume_string(",") is not None
                 and self.consume_string("/") is not None
             ):
-                params.append(PositionalParamsSeparator())
+                positional_only_params = params
+                params = []
 
                 self.register_revert()
                 while self.revertable(
@@ -747,7 +748,7 @@ class Parser:
                 named_tuple_rest_param = param
 
             return FuncParams(
-                params, tuple_rest_param, keyword_only_params, named_tuple_rest_param
+                params, positional_only_params, tuple_rest_param, keyword_only_params, named_tuple_rest_param
             )
 
         # THIRD ALTERNATIVE
@@ -775,7 +776,7 @@ class Parser:
                 named_tuple_rest_param = param
 
             return FuncParams(
-                [], tuple_rest_param, keyword_only_params, named_tuple_rest_param
+                [], [], tuple_rest_param, keyword_only_params, named_tuple_rest_param
             )
 
         # FOURTH ALTERNATIVE
@@ -784,7 +785,7 @@ class Parser:
             self.consume_string("**") is not None
             and (named_tuple_rest_param := self.lambda_param()) is not None
         ):
-            return FuncParams([], Null(), [], named_tuple_rest_param)
+            return FuncParams([], [], Null(), [], named_tuple_rest_param)
 
         return None
 
@@ -2282,7 +2283,7 @@ class Parser:
     def func_params(self):
         """
         rule =
-            | func_param (',' func_param)* (',' '*' func_param (',' func_param)*)? (',' '**' func_param)? ','?
+            | func_param (',' func_param)* (',' '/' (',' func_param)*)? (',' '*' func_param (',' func_param)*)? (',' '**' func_param)? ','?
             | '*' func_param (',' func_param)* (',' '**' func_param)? ','?
             | '**' func_param ','?
         """
@@ -2292,6 +2293,7 @@ class Parser:
         # FIRST ALTERNATIVE
         if (param := self.func_param()) is not None:
             params = [param]
+            positional_only_params = []
 
             self.register_revert()
             while self.revertable(
@@ -2305,7 +2307,8 @@ class Parser:
                 self.consume_string(",") is not None
                 and self.consume_string("/") is not None
             ):
-                params.append(PositionalParamsSeparator())
+                positional_only_params = params
+                params = []
 
                 self.register_revert()
                 while self.revertable(
@@ -2342,7 +2345,7 @@ class Parser:
                 named_tuple_rest_param = param
 
             return FuncParams(
-                params, tuple_rest_param, keyword_only_params, named_tuple_rest_param
+                params, positional_only_params, tuple_rest_param, keyword_only_params, named_tuple_rest_param
             )
 
         # SECOND ALTERNATIVE
@@ -2370,7 +2373,7 @@ class Parser:
                 named_tuple_rest_param = param
 
             return FuncParams(
-                [], tuple_rest_param, keyword_only_params, named_tuple_rest_param
+                [], [], tuple_rest_param, keyword_only_params, named_tuple_rest_param
             )
 
         # THIRD ALTERNATIVE
@@ -2379,7 +2382,7 @@ class Parser:
             self.consume_string("**") is not None
             and (named_tuple_rest_param := self.func_param()) is not None
         ):
-            return FuncParams([], Null(), [], named_tuple_rest_param)
+            return FuncParams([], [], Null(), [], named_tuple_rest_param)
 
         return None
 

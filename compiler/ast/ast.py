@@ -4,7 +4,6 @@ Contains classes that describe Raccoon's Abstract Syntax Tree.
 
 from enum import Enum
 
-
 class BinaryOpKind(Enum):
     """
     The different kinds of binary operators
@@ -139,10 +138,11 @@ class AST:
         type_name = type(self).__name__
         fields = vars(self)
         formatted_fields = ", ".join(
-            ["=".join([key, repr(value)]) for key, value in fields.items()]
+            [f'"{key}": {repr(value)}' for key, value in fields.items()]
         )
+        formatted_fields = f', {formatted_fields}' if formatted_fields else ''
 
-        return f"{type_name}({formatted_fields})"
+        return f'{{ "kind": "{type_name}" {formatted_fields} }}'
 
     def __eq__(self, other):
         return vars(self) == vars(other) if isinstance(other, AST) else None
@@ -270,20 +270,17 @@ class FuncParam(AST):
         self.default_value_expr.accept(visitor)
 
 
-class PositionalParamsSeparator(AST):
-    def __init__(self):
-        pass
-
-
 class FuncParams(AST):
     def __init__(
         self,
         params,
+        positional_only_params=[],
         tuple_rest_param=Null(),
         keyword_only_params=[],
         named_tuple_rest_param=Null(),
     ):
         self.params = params
+        self.positional_only_params = positional_only_params
         self.tuple_rest_param = tuple_rest_param
         self.keyword_only_params = keyword_only_params
         self.named_tuple_rest_param = named_tuple_rest_param

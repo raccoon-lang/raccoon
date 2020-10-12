@@ -24,7 +24,10 @@ from compiler.ast import (
     ImportStatement,
 )
 from compiler.errors.semantic import SemanticError
-from compiler.semantic.visitors import FunctionVisitor
+from compiler.semantic.visitors import (
+    AssignmentVisitor,
+    FunctionVisitor
+)
 
 
 class SemanticAnalyzer:
@@ -194,7 +197,7 @@ class SemanticVisitor(Visitor):
 
         # We are concerned with top-level stuff.
         if type_ == AssignmentStatement:
-            pass
+            data = AssignmentVisitor(top_level, self.state).start_visit()
 
         elif type_ == Function:
             data = FunctionVisitor(top_level, self.state).start_visit()

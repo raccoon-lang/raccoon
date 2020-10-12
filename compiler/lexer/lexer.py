@@ -95,10 +95,7 @@ class Token:
         self.column = column
 
     def __repr__(self):
-        return (
-            f'Token(data="{self.data}", kind={self.kind}, row={self.row}'
-            f", column={self.column})"
-        )
+        return f'''{{ "kind": "{self.kind}", "data": "{self.data}", "row": {self.row}, "column": {self.column} }}'''
 
     def __eq__(self, other):
         return (

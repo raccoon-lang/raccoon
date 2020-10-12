@@ -140,7 +140,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
     # Union type
     identity: int | str = 'XNY7V40'
 
-    # Type reltionship
+    # Type relationship
     Person < Mammal
     Mammal > Person
     Person == Person
@@ -368,7 +368,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
     animals[0].meow() # Need to cast to a type
     """
 
-    cast.[Cat](animals[0]).meow()
+    cast[Cat](animals[0]).meow()
     ```
 
 - Overloading functions and methods based on arity and types
@@ -457,12 +457,12 @@ However, it will be nice to have Raccoon not diverge from Python too much
     Maybe look for another keyword
 
     ```py
-    data Pet(name, age):
+    data class Pet(name, age):
         def __str__(self):
             return f"Pet(name={self.name}, age={self.age})"
 
-    data Person(name: str, age: int, bases=(Specie))
-    data Identity[T](id: T)
+    data class Person(name: str, age: int, bases=(Specie))
+    data class Identity[T](id: T)
 
     john = Person("John", 50)
     id = Identity(504)
@@ -478,4 +478,30 @@ However, it will be nice to have Raccoon not diverge from Python too much
         mov eax, [esi-4]    ; Move 4 bytes at memory address ESI + (-4) into EAX
         mov [esi+eax], cl   ; Move the contents of CL into the byte at address ESI+EAX
         """
+    ```
+
+- Goroutine-like green threads
+
+    Replace async functions with goroutine-like green thread implementation.
+
+    ```py
+    import time
+
+    c1: chan[str]
+    c2: chan[str]
+
+    def count(sec: int, c: chan[str]):
+        while True:
+            print(f"Every {sec}s")
+            time.sleep(sec)
+
+    async count(1, c1)
+    async count(2, c1)
+
+    while True:
+        # if-elif-else acts like select-case
+        if msg := <- c1:
+            print(msg)
+        elif msg := <- c2:
+            print(msg)
     ```
