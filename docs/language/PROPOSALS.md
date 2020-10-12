@@ -427,7 +427,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
 - Revamped enums (ADTs)
 
     ```py
-    enum Option[T]:
+    enum class Option[T]:
         Ok(value: T)
         None
 
@@ -444,9 +444,10 @@ However, it will be nice to have Raccoon not diverge from Python too much
 - Revamped abstract classes
 
     ```py
-    abstract Observable:
-        abstract subscriptions: [Subscription]
-        
+    abstract class Observable:
+        def __init__(self):
+            self.subscriptions: [Subscription]
+
         abstract def notify()
         abstract def add_subscription(sub: Subcription)
     ```

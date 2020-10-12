@@ -1,8 +1,8 @@
 """
 """
 
-from .assignment import AssignmentVisitor
-from .return_ import ReturnVisitor
+from .assignment_stmt import AssignmentVisitor
+from .return_stmt import ReturnVisitor
 from compiler import Visitor
 from compiler.ast import (
     Null,

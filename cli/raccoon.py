@@ -2,7 +2,7 @@
 
 """
 TODO:
-    This module needs to work almost like the `poython` command but with some extensions.
+    This module needs to work almost like the `python` command but with some extensions.
     For example, currently the -c option works differently from python's -c option.
 """
 
@@ -34,7 +34,7 @@ from argument_handler import ArgumentHandler
 )
 def app(version, program_file, compile_string, ast, tokens, sema, ll, wasm, verbose):
     """
-    raccoon.py samples/test.co --ast
+    raccoon.py test.ra --ast
     """
     ctx = click.get_current_context()
 

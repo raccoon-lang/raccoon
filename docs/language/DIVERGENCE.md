@@ -150,6 +150,11 @@
 
     - Raccoon does not support `__new__` method since classes are statically created.
 
+
+- Inheritance
+
+    - Raccoon only support single inheritance for concrete types.
+
 - Imports
 
     - Raccoon resolves imported modules at compile-time

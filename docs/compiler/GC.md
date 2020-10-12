@@ -68,7 +68,7 @@
 
         free_owned_deallocatable :: b
 
-        c <- a = Obj3() <- Obj1
+        c <- a = Obj3() <- Obj1()
 
         set_global_deallocatable_ptr :: has objects it needs inner functions to deallocate
 
@@ -123,9 +123,6 @@
 
     The compiler tracks every variable in the program. It is able to determine if two object reference each other from the variables.
     With this information, the compiler can determine when the two objects are no longer referenced and deallocate them together.
-
-
-    #### HOW IT PREVENTS REFERENCE CYCLES
 
     Creating statically-unknown number of objects dynamically isn't an issue for SRT because objects are bound to statically-known names at compile-time with the exception of temporary objects whose lifetimes are well-defined and statically determinable. The compiler can know when two object reference each other from their names and it can determine when the two objects are no longer referenced and deallocate them together.
 

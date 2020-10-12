@@ -13,11 +13,11 @@ class AssignmentVisitor(Visitor):
     def start_visit(self):
         self.ast.accept(self)
 
-    def act(self, assignement):
+    def act(self, assignment):
         """
         """
 
-        for ast in assignement.lhses:
+        for ast in assignment.lhses:
             pass
 
         return False

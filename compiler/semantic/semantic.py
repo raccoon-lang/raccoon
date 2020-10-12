@@ -61,7 +61,7 @@ class SemanticAnalyzer:
             )
 
         semantic_state = SemanticVisitor(
-            self.ast, relevant_tokens, codegen, compiler_opts
+            self.ast, relevant_tokens, self.codegen, self.compiler_opts
         ).start_visit()
 
         if self.compiler_opts.verbose:
@@ -119,9 +119,17 @@ class TokenExtractionVisitor(Visitor):
         return True
 
 
+class SymbolInfo:
+    """
+    """
+
+    def __init__(self):
+        pass
+
+
 class SemanticState:
     """
-    symbol_table is an array of scopes. Each scope is a table of symbols and their information.
+    symbol_table is a stack of scopes. Each scope is a table of symbols and their information.
     symbol_table = [
         { # scope 0
             "var": SymbolInfo(...),

@@ -8,7 +8,7 @@ from compiler import CompilerOptions
 from compiler.lexer import Lexer
 from compiler.parser import Parser
 from compiler.semantic import SemanticAnalyzer
-from compiler.codegen import LLVMCodegenVisitor
+# from compiler.codegen import LLVMCodegenVisitor
 
 
 class ArgumentHandler:
@@ -76,8 +76,9 @@ class ArgumentHandler:
             tokens = Lexer(code, compiler_opts).lex()
             ast = Parser(tokens, compiler_opts).parse()
             lowered_ast = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
-            llvm_module = LLVMCodegenVisitor(lowered_ast, compiler_opts).start_visit()
-            result = llvm_module
+            # llvm_module = LLVMCodegenVisitor(lowered_ast, compiler_opts).start_visit()
+            # result = llvm_module
+            result = None
 
         elif output_type == "wasm":
             result = None
@@ -100,6 +101,6 @@ class ArgumentHandler:
         Runs a compiled
         """
 
-        abs_path = path.abs_path(file_path)
+        abs_path = path.abspath(file_path)
         subprocess.call(abs_path)
         # TODO: Run executable

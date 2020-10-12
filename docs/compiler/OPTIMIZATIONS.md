@@ -28,13 +28,13 @@
 
 - High-level Optimizations
 
-    I decided agianst an MIR for now because I don't see the benefit for the use cases (in module and cross-module instantiation) I have in mind. Binaryen is AST-based and it doesn't have problems with optimizations.
+    I decided against an MIR for now because I don't see the benefit for the use cases (in module and cross-module instantiation) I have in mind. Binaryen is AST-based and it doesn't have problems with optimizations.
 
     IR adds a layer of complexity. I can simply copy the AST nodes I need and operate on that.
 
 - Frames
 
-    Frames allows the sema to type check instantiationx faster, rather than walking the AST each time.
+    Frames allows the sema to type check instantiation faster, rather than walking the AST each time.
 
 - Instantiation
 

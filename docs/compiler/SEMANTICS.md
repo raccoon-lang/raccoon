@@ -345,48 +345,9 @@
 
 - Method Resolution Order
 
-    It is quite simple. No C3 linearization, instead we rely on the order in which super types are defined. Types from inherited modules are given types first.
-    And types and their subtypes follow each other in ranking. This means type_ids are constantly updated to meet the requirements mentioned here.
+    There is no multiple inheritance for concrete types in Raccoon so all types in inheritance trees can be given a unique index using post-order traversal. This makes type checking and method resolution a simple range check.
 
-
-    ```py
-    class A:
-        def foo(self):
-            return 1
-
-    class B(A):
-        pass
-
-    class C(A):
-        def foo(self):
-            return 2
-
-    class D(B, C):
-        pass
-
-    d = D()
-    d.foo() # => 2
-
-    class F:
-        pass
-
-    class E(C, B):
-        pass
-
-    e = E()
-    e.foo() # => 2
-
-    """
-    A: 1
-    B: 2
-    C: 3
-    D: 4
-    E: 5
-    F: 6
-    """
-    ```
-
-    With this it is possible to check an objects supertype by checking on a range.
+    Raccoon however supports multiple inheritance for abstract types.
 
 - Generators
 

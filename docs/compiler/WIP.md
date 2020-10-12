@@ -1,3 +1,5 @@
+## THIS DOCUMENT IS STALE, CHECK [WIP2](#WIP2.md)
+
 ## IMPLEMENTATION
 
 - PARTS
@@ -101,8 +103,6 @@
         """
         ```
 
-
-
     - IMPORTS
 
         imports is a map of elements imported from other modules. Imported elements are not resolved at declaration point, until they get to used in the current module's code.
@@ -120,7 +120,7 @@
 
     - INSTANCES
 
-        Instances are formed from giving a type's field layout or a function's signature layout a conrete abi.
+        Instances are formed from giving a type's field layout or a function's signature layout a concrete abi.
 
         ```py
         function_instances = [1, 2, 3] # concrete_abi indices
