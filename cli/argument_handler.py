@@ -10,7 +10,7 @@ from compiler import CompilerOptions
 from compiler.lexer import Lexer
 from compiler.parser import Parser
 from compiler.semantic import SemanticAnalyzer
-# from compiler.codegen import LLVMCodegenVisitor
+from utils import json_dumps
 
 
 class ArgumentHandler:
@@ -64,23 +64,22 @@ class ArgumentHandler:
 
         if output_type == "tokens":
             tokens = Lexer(code, compiler_opts).lex()
-            result = json_dumps(repr(tokens))
+            result = json_dumps(tokens)
 
         elif output_type == "ast":
             ast = Parser.from_code(code, compiler_opts).parse()
-            result = json_dumps(repr(ast))
+            result = json_dumps(ast)
 
         elif output_type == "sema":
             tokens = Lexer(code, compiler_opts).lex()
             ast = Parser(tokens, compiler_opts).parse()
-            # semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
-            # result = semantic_info
-            result = None
+            semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
+            result = json_dumps(semantic_info)
 
         elif output_type == "ll":
             tokens = Lexer(code, compiler_opts).lex()
             ast = Parser(tokens, compiler_opts).parse()
-            # semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
+            semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
             # llvm_module = LLVMCodegenVisitor(lowered_ast, compiler_opts).start_visit()
             # result = llvm_module
             result = None
@@ -109,11 +108,3 @@ class ArgumentHandler:
         abs_path = path.abspath(file_path)
         subprocess.call(abs_path)
         # TODO: Run executable
-
-
-def json_dumps(string):
-    string = string.replace("None", "null") \
-        .replace("False", "false") \
-        .replace("True", "true")
-
-    return json.dumps(json.loads(string), indent=4)

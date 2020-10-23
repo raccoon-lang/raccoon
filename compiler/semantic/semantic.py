@@ -3,9 +3,9 @@ TODO:
     - Move the different visitors into their respective folders.
     - Module documentation.
 """
-
-from collections import namedtuple
+import json
 from copy import deepcopy
+from collections import namedtuple
 from compiler import CompilerOptions, Visitor
 from compiler.ast import (
     Null,
@@ -28,6 +28,7 @@ from compiler.semantic.visitors import (
     AssignmentVisitor,
     FunctionVisitor
 )
+from utils import json_dumps
 
 
 class SemanticAnalyzer:
@@ -41,11 +42,10 @@ class SemanticAnalyzer:
     - SemanticVisitor
     """
 
-    def __init__(self, ast, tokens, codegen, compiler_opts=CompilerOptions()):
+    def __init__(self, ast, tokens, compiler_opts=CompilerOptions()):
         self.ast = ast
         self.tokens = tokens
         self.compiler_opts = compiler_opts
-        self.codegen = codegen
 
     def analyze(self):
         """
@@ -60,17 +60,12 @@ class SemanticAnalyzer:
             print(
                 f"============ relevant_tokens ============\n"
                 f"length = {len(relevant_tokens)}\n\n"
-                f"{relevant_tokens}\n"
+                f"{json_dumps(relevant_tokens)}\n"
             )
 
-        semantic_state = SemanticVisitor(
-            self.ast, relevant_tokens, self.codegen, self.compiler_opts
-        ).start_visit()
+        state = SemanticVisitor(self.ast, relevant_tokens, self.compiler_opts).start_visit()
 
-        if self.compiler_opts.verbose:
-            print(f"============ semantic_state ============\n\n{semantic_state}\n")
-
-        return semantic_state
+        return state
 
 
 class TokenExtractionVisitor(Visitor):
@@ -116,7 +111,6 @@ class TokenExtractionVisitor(Visitor):
             self.relevant_tokens[first_idx] = deepcopy(self.tokens[first_idx])
 
             if (second_idx := visitable.rem_op) is not None:
-                print(f">>> second_idx = {second_idx}")
                 self.relevant_tokens[second_idx] = deepcopy(self.tokens[second_idx])
 
         return True
@@ -133,18 +127,24 @@ class SymbolInfo:
 class SemanticState:
     """
     symbol_table is a stack of scopes. Each scope is a table of symbols and their information.
-    symbol_table = [
+    symbols = [
         { # scope 0
-            "var": SymbolInfo(...),
-            "func": SymbolInfo(...)
+            "typed": {
+                "var": SymbolInfo(
+                    ast_ref=()
+                ),
+                "func": SymbolInfo(
+                    ast_ref=(),
+                )
+            },
+            "untyped": {
+                "ls": SymbolInfo(
+                    ast_ref=(),
+                    list_type_indices=[]
+                ),
+            }
         },
-        { # scope 1
-            "var": SymbolInfo(...)
-        }
     ]
-
-    concrete_abis is a set of function and type abis.
-    concrete_abis = {"14.1.1", "1.4.15"}
 
     imports is map of elements imported from other modules.
     imports = {
@@ -152,24 +152,24 @@ class SemanticState:
     }
     """
 
-    def __init__(self, tokens, codegen, compiler_opts=CompilerOptions()):
+    def __init__(self, tokens, compiler_opts=CompilerOptions()):
         self.tokens = tokens
         self.current_scope_level = 0
         self.current_path = ""
-        self.symbol_table = []
-        self.concrete_abis = set()
+        self.symbols = []
+        self.inheritance_lists = []
         self.imports = {}
-        self.codegen = codegen
         self.compiler_opts = compiler_opts
 
-    def __repr__(self):
-        return (
-            f'SemanticState(tokens=[...], current_scope_level={self.current_scope_level}'
-            f", current_path={repr(self.current_path)}, symbol_table={self.symbol_table}"
-            f", concrete_abis={self.concrete_abis}, codegen={self.codegen}"
-            f", compiler_opts={self.compiler_opts})"
-        )
+    def add_scope(self, scope):
+        self.current_scope_level += 1
+        self.symbols.append(scope)
 
+    def __repr__(self):
+        fields = deepcopy(vars(self))
+        fields['kind'] = type(self).__name__
+        string = ", ".join([f"{repr(key)}: {repr(val)}" for key, val in fields.items()])
+        return "{" + string + "}"
 
 class SemanticVisitor(Visitor):
     """
@@ -179,11 +179,11 @@ class SemanticVisitor(Visitor):
     Making it do a lot in a single pass is an intentional design for preformance.
     """
 
-    def __init__(self, ast, tokens, codegen, compiler_opts=CompilerOptions()):
+    def __init__(self, ast, tokens, compiler_opts=CompilerOptions()):
         """
         """
         self.ast = ast
-        self.state = SemanticState(tokens, codegen, compiler_opts)
+        self.state = SemanticState(tokens, compiler_opts)
 
     def start_visit(self):
         self.ast.accept(self)
@@ -196,17 +196,8 @@ class SemanticVisitor(Visitor):
         type_ = type(top_level)
 
         # We are concerned with top-level stuff.
-        if type_ == AssignmentStatement:
-            data = AssignmentVisitor(top_level, self.state).start_visit()
-
-        elif type_ == Function:
-            data = FunctionVisitor(top_level, self.state).start_visit()
-
-        elif type_ == Class:
-            pass
-
-        elif type_ == ImportStatement:
-            pass
+        if type_ == Function:
+            FunctionVisitor(top_level, self.state).start_visit()
 
         else:
             pass

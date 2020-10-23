@@ -13,6 +13,8 @@ Raccoon is a language with Python 3.x syntax that is amenable to static analysis
 
 **Raccoon will not maintain full syntactic and semantic compatibility with Python**. Several dynamic elements known of Python are not available in Raccoon. While Raccoon prioritizes a design that benefits static analysis, it still allows Python's level of flexibility where statically determinable.
 
+Below is an example of what Raccoon looks like:
+
 ```py
 class Person:
     """
@@ -100,7 +102,12 @@ You can check [samples folder](#samples) for more examples.
     pipenv install
     ```
 
-- Currently only compilation to AST is supported.
+- Currently the compiler can only generate tokens and AST from source files.
+
+    ```sh
+    cli/raccoon samples/test.ra --tokens
+    ```
+
     ```sh
     cli/raccoon samples/test.ra --ast
     ```

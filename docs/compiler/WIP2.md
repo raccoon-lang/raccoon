@@ -28,6 +28,8 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
 
     Symbol table is a stack of scopes. Each scope is a table of symbols and their information.
 
+    Stack is chosen because, scopes are likely not to be highly nested.
+
     ```py
     symbol_table = [
         { # scope 0
@@ -150,21 +152,67 @@ symbol_table = [
 ]
 ```
 
+#### Semantic Objects
+- Class Definition
+- Function Definition
+- Assignment
+- Import
+- Accesses
+    - Index
+    - Field
+- Control Flow
+    - If/Else/Elif
+    - Yield
+    - Return
+    - Assert
+    - Pass
+    - Break
+    - Continue
+    - Raise
+    - With
+    - Try/Except/Else/Finally
+    - For
+    - While
+- Operations
+    - Function Call
+    - Comprehension
+    - Operator
+    - Named Expression
+    - Constructions
+        - List
+        - Dict
+        - Set
+        - Tuple
+        - Namedtuple
+    - Literal
+        - Bool
+        - Integer
+        - Float
+        - ImagFloat/ImagInteger
+        - String
+        - ByteString
+    - Type
 
-#### Top Level
 
 #### Function Definition
 
-**Start of Function**
-- Check function name conflict with existing
-- Check params names conflict with each other
+**Semantic Checks**
+- Check params names do not conflict with each other
 - Check params types exist
-- Check generics annotation names conflict with each other
-- Check generics annotation names conflict with existing names
-- ...
+- Check generics annotation names do not conflict with each other
+- Check generics annotation names do not conflict with existing names
 
-**Body of Function**
--
+**Type Checks**
+- Type check default values against their type annotations
 
+**Symbol Table Update**
+- Create a new scope in symbol table
+- Save function in symbol table
+- Save params, positional_only_params and keyword_only_params as variables in symbol table
+- Save tuple_rest_param as tuple variable in symbol table
+- Save named_tuple_rest_param as named tuple variable in symbol table
 
+**Allowed Semantics**
+- Function name can conflict with existing allowing shadowing
+- Function param names can conflict with existing allowing shadowing
 

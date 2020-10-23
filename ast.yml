@@ -60,10 +60,9 @@ FuncParam:
   - type_annotation
   - default_value_expr
 
-PositionalParamsSeparator: []
-
 FuncParams:
   - params
+  - positional_only_params
   - tuple_rest_param
   - keyword_only_params
   - named_tuple_rest_param

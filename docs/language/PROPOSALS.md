@@ -490,9 +490,9 @@ However, it will be nice to have Raccoon not diverge from Python too much
     c1: chan[str]
     c2: chan[str]
 
-    def count(sec: int, c: chan[str]):
+    def count(sec: int, c: chan[str]<-):
         while True:
-            print(f"Every {sec}s")
+            c <- f"Every {sec}s"
             time.sleep(sec)
 
     async count(1, c1)
@@ -503,5 +503,29 @@ However, it will be nice to have Raccoon not diverge from Python too much
         if msg := <- c1:
             print(msg)
         elif msg := <- c2:
+            print(msg)
+    ```
+
+    OR
+
+    ```py
+    import time
+
+    c1: Chan[str]
+    c2: Chan[str]
+
+    def count(sec: int, c: SendChan[str]):
+        while True:
+            send(c, f"Every {sec}s")
+            time.sleep(sec)
+
+    async count(1, c1)
+    async count(2, c1)
+
+    while True:
+        # if-elif-else acts like select-case
+        if msg := recv(c1):
+            print(msg)
+        elif msg := recv(c2):
             print(msg)
     ```

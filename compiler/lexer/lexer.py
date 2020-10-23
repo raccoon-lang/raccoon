@@ -23,6 +23,8 @@ GUIDELINES:
     - ...
 """
 
+import json
+from copy import deepcopy
 from enum import Enum
 from compiler.errors import LexerError
 from compiler.options import CompilerOptions
@@ -95,7 +97,10 @@ class Token:
         self.column = column
 
     def __repr__(self):
-        return f'''{{ "kind": "{self.kind}", "data": "{self.data}", "row": {self.row}, "column": {self.column} }}'''
+        fields = deepcopy(vars(self))
+        fields['kind'] = repr(self.kind)
+        string = ", ".join([f"{repr(key)}: {repr(val)}" for key, val in fields.items()])
+        return "{" + string + "}"
 
     def __eq__(self, other):
         return (

@@ -39,9 +39,17 @@ class FunctionVisitor(Visitor):
         """
         """
 
-        data = FuncParamsVisitor(function.param, self.state).start_visit()
+        # Create a new scope in symbol table.
+        self.state.add_scope({
+            "typed": {
+                function.name: {
 
-        for ast in function.body:
-            type_ = type(ast)
+                },
+            }
+        })
+
+        # ...
+
+        FuncParamsVisitor(function.params, self.state).start_visit()
 
         return False

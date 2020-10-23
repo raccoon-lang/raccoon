@@ -1,7 +1,8 @@
 """
 Contains classes that describe Raccoon's Abstract Syntax Tree.
 """
-
+import json
+from copy import deepcopy
 from enum import Enum
 
 class BinaryOpKind(Enum):
@@ -135,14 +136,10 @@ class AST:
     """
 
     def __repr__(self):
-        type_name = type(self).__name__
-        fields = vars(self)
-        formatted_fields = ", ".join(
-            [f'"{key}": {repr(value)}' for key, value in fields.items()]
-        )
-        formatted_fields = f', {formatted_fields}' if formatted_fields else ''
-
-        return f'{{ "kind": "{type_name}" {formatted_fields} }}'
+        fields = deepcopy(vars(self))
+        fields['kind'] = type(self).__name__
+        string = ", ".join([f"{repr(key)}: {repr(val)}" for key, val in fields.items()])
+        return "{" + string + "}"
 
     def __eq__(self, other):
         return vars(self) == vars(other) if isinstance(other, AST) else None
