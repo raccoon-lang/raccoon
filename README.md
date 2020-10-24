@@ -91,17 +91,6 @@ For now you have to build the project to get it working.
     </p>
     </details>
 
-- [Binaryen](https://github.com/WebAssembly/binaryen) (Optional) - Toolchain for generating and optimizing wasm files
-    <details>
-    <summary>Read more</summary>
-    <p>
-    You need to build binaryen as a dynamic library by following the instructions here:
-    https://github.com/WebAssembly/binaryen#building
-
-    Make sure generated dynamic library is accessible system-wide. On Linux and macOS platforms, you can save the library in `/usr/local/lib` directory.
-    </p>
-    </details>
-
 ##### STEPS
 - Clone project
     ```sh

@@ -153,7 +153,7 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
 
 ### CODEGEN VISITOR
 
-    
+    This generates the LLVM IR or wasm binary. Type checking is deferred to this stage.
 
 ----------
 

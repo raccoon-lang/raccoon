@@ -1,4 +1,4 @@
-#! /usr/bin/env pipenv run -- python3
+#! /usr/bin/env pipenv run python
 
 """
 TODO:

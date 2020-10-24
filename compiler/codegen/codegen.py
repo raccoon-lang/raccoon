@@ -8,9 +8,10 @@ class Codegen:
     """
     """
 
-    def __init__(self, semantic_info):
+    def __init__(self, ast, semantic_info):
         self.word_size = 64 if '64' in machine() else 32
         self.semantic_info = semantic_info
+        self.ast = ast
 
     def __repr__(self):
         fields = deepcopy(vars(self))

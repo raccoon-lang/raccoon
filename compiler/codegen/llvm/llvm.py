@@ -4,14 +4,15 @@ This module generates LLVM IR from Raccoon lowered AST.
 from llvmlite import ir, binding as llvm
 from compiler import CompilerOptions
 from compiler.codegen import Codegen
+from compiler.visitor import Visitor
 
 
 class LLVMCodegen(Codegen):
     """
     """
 
-    def __init__(self, semantic_info):
-        super().__init__(semantic_info)
+    def __init__(self, ast, semantic_info):
+        super().__init__(ast, semantic_info)
         self.module = ir.Module()
         self.main = self.generate_main()
         self.generate_target_triple()
@@ -67,8 +68,22 @@ class LLVMCodegen(Codegen):
         pass
 
     def generate(self):
+        LLVMCodegenVisitor(self.ast, self.semantic_info).start_visit()
         return self
 
     def dumps(self):
         return str(self.module)
 
+
+class LLVMCodegenVisitor(Visitor):
+    """
+    """
+    def __init__(self, ast, semantic_info):
+        self.program = ast
+        self.semantic_info = semantic_info
+
+    def start_visit(self):
+        self.program.accept(self)
+
+    def act(self, ast):
+        pass

@@ -66,9 +66,9 @@ class SemanticAnalyzer:
                 f"{json_dumps(relevant_tokens)}\n"
             )
 
-        info = SemanticVisitor(self.ast, relevant_tokens, self.compiler_opts).start_visit()
+        semantic_info = SemanticVisitor(self.ast, relevant_tokens, self.compiler_opts).start_visit()
 
-        return info
+        return semantic_info
 
 
 class TokenExtractionVisitor(Visitor):
