@@ -10,7 +10,7 @@ from compiler import CompilerOptions
 from compiler.lexer import Lexer
 from compiler.parser import Parser
 from compiler.semantic import SemanticAnalyzer
-from compiler.codegen import LLVMCodegen, WasmCodegen
+from compiler.codegen import LLVMCodegen
 from utils import json_dumps
 
 
@@ -82,7 +82,7 @@ class ArgumentHandler:
             tokens = Lexer(code, compiler_opts).lex()
             ast = Parser(tokens, compiler_opts).parse()
             semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
-            llvm = LLVMCodegen(semantic_info).generate()
+            llvm = LLVMCodegen(ast, semantic_info).generate()
             result = llvm.dumps()
 
         elif output_type == "wasm":
@@ -90,8 +90,7 @@ class ArgumentHandler:
             tokens = Lexer(code, compiler_opts).lex()
             ast = Parser(tokens, compiler_opts).parse()
             semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
-            wasm = WasmCodegen(semantic_info).generate()
-            result = wasm.dumps()
+            result = json_dumps(semantic_info)
 
         else:
             click.echo("Unimplemented Output Type!")

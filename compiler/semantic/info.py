@@ -4,7 +4,6 @@
 from enum import Enum
 from copy import deepcopy
 from compiler.options import CompilerOptions
-from compiler.codegen import LLVMCodegen, WasmCodegen, Codegen
 
 class SymbolKind(Enum):
     VARIABLE = 0

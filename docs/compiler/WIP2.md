@@ -191,7 +191,7 @@ symbols = [
 ]
 ```
 
-The `SemanticVisitor` visits all ast nodes, checks for semantic consistency, gather semantic information and finally generates code. This is possible because requires declaration of symbols before usage.
+The `SemanticVisitor` visits all ast nodes, checks for semantic consistency and gathers semantic information about the ast.
 
 
 ### Prelude
