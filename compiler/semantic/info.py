@@ -13,6 +13,21 @@ class SymbolKind(Enum):
     PARAM = 3
 
 
+class Scope:
+    """
+    """
+    def __init__(self, name, parent, typed={}, untyped={}):
+        self.name = name
+        self.parent = parent
+        self.typed = typed
+        self.untyped = untyped
+
+    def __repr__(self):
+        fields = deepcopy(vars(self))
+        string = ", ".join([f"{repr(key)}: {repr(val)}" for key, val in fields.items()])
+        return "{" + string + "}"
+
+
 class SymbolInfo:
     """
     """
@@ -69,40 +84,26 @@ class SemanticInfo:
         self.current_path = ""
         self.compiler_opts = compiler_opts
         self.symbols = SemanticInfo.get_prelude_symbols()
+        self.current_parent_scope = 0 # 0 since the current scope is __main__
         self.inheritance_lists = SemanticInfo.get_primitive_types()
-        self.codegen = SemanticInfo.get_codegen(compiler_opts)
+
+    def exit_scope(self):
+        self.current_parent_scope -= 1
 
     def add_new_scope(self, symbol_name):
-        self.symbols.append({
-            "name": symbol_name,
-            "typed": {},
-            "untyped": {}
-        })
+        self.symbols.append(Scope(symbol_name, self.current_parent_scope))
 
     def add_new_symbol(self, name, symbol_info, typed=True):
         if typed:
-            self.symbols[-1]["typed"][name] = symbol_info
+            self.symbols[-1].typed[name] = symbol_info
         else:
-            self.symbols[-1]["untyped"][name] = symbol_info
+            self.symbols[-1].untyped[name] = symbol_info
 
     def add_new_top_level_symbol(self, name, symbol_info, typed=True):
         if typed:
-            self.symbols[0]["typed"][name] = symbol_info
+            self.symbols[0].typed[name] = symbol_info
         else:
-            self.symbols[0]["untyped"][name] = symbol_info
-
-    @staticmethod
-    def get_codegen(compiler_opts):
-        target_code = compiler_opts.target_code
-
-        if target_code == "llvm":
-            codegen = LLVMCodegen(compiler_opts)
-        elif target_code == "wasm":
-            codegen = WasmCodegen(compiler_opts)
-        else:
-            codegen = Codegen()
-
-        return codegen
+            self.symbols[0].untyped[name] = symbol_info
 
     @staticmethod
     def get_primitive_types():
@@ -131,23 +132,15 @@ class SemanticInfo:
         Get prelude symbols like str, int, etc.
         """
 
-        # Create top-level scope and add __raccoon_main__ to top-level
-        top = [{
-            "name": "top",
-            "typed": {
-                "__raccoon_main__": SymbolInfo(
-                    kind=SymbolKind.FUNCTION,
-                )
-            },
-            "untyped": {}
-        }]
+        # Create top-level scope and add __main__ to top-level
+        top = [Scope("top", parent=-1, typed={
+            "__main__": SymbolInfo(
+                kind=SymbolKind.FUNCTION,
+            )
+        })]
 
-        # Create __raccoon_main__ scope
-        top.append({
-            "name": "__raccoon_main__",
-            "typed": {},
-            "untyped": {}
-        })
+        # Create __main__ scope
+        top.append(Scope("__main__", parent=0))
 
         return top
 

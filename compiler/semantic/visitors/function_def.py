@@ -106,11 +106,10 @@ class FunctionVisitor(Visitor):
             )
         )
 
-        # Create a new scope in symbol table.
+        # Create a new scope in symbol table for function
         self.info.add_new_scope(function_name_token.data)
 
-        # ...
-
+        # Handle parameters
         FuncParamsVisitor(self.info, self.function).start_visit()
 
         return False
