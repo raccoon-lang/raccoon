@@ -722,7 +722,6 @@ class NonLocals(AST):
 
     def accept_on_children(self, visitor):
         [name.accept(visitor) for name in self.names]
-        [statement.accept(visitor) for statement in self.exprs]
 
 
 class AssertStatement(AST):

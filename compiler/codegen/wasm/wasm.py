@@ -2,7 +2,7 @@
 This module generates WebAssembly binary from Raccoon lowered AST.
 """
 from compiler import CompilerOptions
-from ..codegen import Codegen
+from compiler.codegen import Codegen
 
 
 class WasmCodegen(Codegen):

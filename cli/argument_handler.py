@@ -77,15 +77,18 @@ class ArgumentHandler:
             result = json_dumps(semantic_info)
 
         elif output_type == "ll":
+            compiler_opts.target_code = "llvm"
             tokens = Lexer(code, compiler_opts).lex()
             ast = Parser(tokens, compiler_opts).parse()
             semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
-            # llvm_module = LLVMCodegenVisitor(lowered_ast, compiler_opts).start_visit()
-            # result = llvm_module
-            result = None
+            result = semantic_info.codegen.dumps()
 
         elif output_type == "wasm":
-            result = None
+            compiler_opts.target_code = "wasm"
+            tokens = Lexer(code, compiler_opts).lex()
+            ast = Parser(tokens, compiler_opts).parse()
+            semantic_info = SemanticAnalyzer(ast, tokens, compiler_opts).analyze()
+            result = semantic_info.codegen.dumps()
 
         else:
             click.echo("Unimplemented Output Type!")

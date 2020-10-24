@@ -28,6 +28,7 @@ from compiler.semantic.visitors import (
     AssignmentVisitor,
     FunctionVisitor
 )
+from .info import SemanticInfo
 from utils import json_dumps
 
 
@@ -63,9 +64,9 @@ class SemanticAnalyzer:
                 f"{json_dumps(relevant_tokens)}\n"
             )
 
-        state = SemanticVisitor(self.ast, relevant_tokens, self.compiler_opts).start_visit()
+        info = SemanticVisitor(self.ast, relevant_tokens, self.compiler_opts).start_visit()
 
-        return state
+        return info
 
 
 class TokenExtractionVisitor(Visitor):
@@ -84,12 +85,12 @@ class TokenExtractionVisitor(Visitor):
         self.tokens = None  # Free tokens
         return self.relevant_tokens
 
-    def act(self, visitable):
+    def act(self, ast):
         """
         Called by the visitable.
         """
 
-        type_ = type(visitable)
+        ty = type(ast)
 
         base_types = {
             Identifier,
@@ -102,74 +103,19 @@ class TokenExtractionVisitor(Visitor):
             PrefixedString,
         }
 
-        if type_ in base_types:
-            index = visitable.index
+        if ty in base_types:
+            index = ast.index
             self.relevant_tokens[index] = deepcopy(self.tokens[index])
 
-        elif type_ == Operator:
-            first_idx = visitable.op
+        elif ty == Operator:
+            first_idx = ast.op
             self.relevant_tokens[first_idx] = deepcopy(self.tokens[first_idx])
 
-            if (second_idx := visitable.rem_op) is not None:
+            if (second_idx := ast.rem_op) is not None:
                 self.relevant_tokens[second_idx] = deepcopy(self.tokens[second_idx])
 
         return True
 
-
-class SymbolInfo:
-    """
-    """
-
-    def __init__(self):
-        pass
-
-
-class SemanticState:
-    """
-    symbol_table is a stack of scopes. Each scope is a table of symbols and their information.
-    symbols = [
-        { # scope 0
-            "typed": {
-                "var": SymbolInfo(
-                    ast_ref=()
-                ),
-                "func": SymbolInfo(
-                    ast_ref=(),
-                )
-            },
-            "untyped": {
-                "ls": SymbolInfo(
-                    ast_ref=(),
-                    list_type_indices=[]
-                ),
-            }
-        },
-    ]
-
-    imports is map of elements imported from other modules.
-    imports = {
-        "name": (path="module.com", alias=True),
-    }
-    """
-
-    def __init__(self, tokens, compiler_opts=CompilerOptions()):
-        self.tokens = tokens
-        self.current_scope_level = 0
-        self.current_path = ""
-        self.symbols = []
-        self.inheritance_lists = []
-        self.imports = {}
-        self.compiler_opts = compiler_opts
-
-    def add_scope(self, scope):
-        self.current_scope_level += 1
-        self.symbols.append(scope)
-
-    def __repr__(self):
-        fields = deepcopy(vars(self))
-        fields['kind'] = type(self).__name__
-        string = ", ".join([f"{repr(key)}: {repr(val)}" for key, val in fields.items()])
-        return "{" + string + "}"
 
 class SemanticVisitor(Visitor):
     """
@@ -182,24 +128,24 @@ class SemanticVisitor(Visitor):
     def __init__(self, ast, tokens, compiler_opts=CompilerOptions()):
         """
         """
-        self.ast = ast
-        self.state = SemanticState(tokens, compiler_opts)
+        self.program = ast
+        self.info = SemanticInfo(tokens, compiler_opts)
 
     def start_visit(self):
-        self.ast.accept(self)
-        return self.state
+        self.program.accept(self)
+        return self.info
 
-    def act(self, top_level):
+    def act(self, ast):
         """
-        Called by the visitable.
         """
-        type_ = type(top_level)
 
-        # We are concerned with top-level stuff.
-        if type_ == Function:
-            FunctionVisitor(top_level, self.state).start_visit()
+        # Iterate through all statements in the program
+        for ast in self.program.statements:
+            ty = type(ast)
 
-        else:
-            pass
+            if ty == Function:
+                FunctionVisitor(self.info, ast).start_visit()
+            else:
+                pass
 
         return False

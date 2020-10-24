@@ -31,27 +31,38 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
     Stack is chosen because, scopes are likely not to be highly nested.
 
     ```py
-    symbol_table = [
+    symbols = [
         { # scope 0
+            "name": "",
             "typed": {
-                "var": SymbolInfo(...),
-                "func": SymbolInfo(...)
+                "var": SymbolInfo(
+                    kind=SymbolKind.Variable,
+                    ast_ref=()
+                ),
+                "func": SymbolInfo(
+                    kind=SymbolKind.Variable,
+                    ast_ref=(),
+                ),
+                "Person": SymbolInfo(
+                    kind=SymbolKind.Class,
+                    ast_ref=(),
+                    instances=[
+                        [(0, 1), (2, 0)]
+                    ]
+                )
             },
             "untyped": {
-                "ls": SymbolInfo(...),
+                "ls": SymbolInfo(
+                    kind=SymbolKind.Variable,
+                    ast_ref=(),
+                    element_types=[(0, 1)]
+                ),
             }
         },
-        { # scope 1
-            "typed": {
-                "var": SymbolInfo(...),
-                "func": SymbolInfo(...)
-            },
-            "untyped": {
-                "ls": SymbolInfo(...),
-            }
-        }
     ]
     ```
+
+    Untyped refers to list or buffer types whose element type is not know until the end of the [function] scope.
 
     **SymbolInfo**
 
@@ -59,7 +70,7 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
 
     - INSTANCES
 
-        For types and functions alike, an instantiation list is maintained for when codegen needs to happen. Instance is the concrete type signature or field layout of a function call or type instantiation.
+        For types and functions alike, an instantiation list is maintained for when codegen needs to happen. Instance is the concrete type signature of a function call or field layout of a type instantiation.
 
         ```py
         func_instances = [
@@ -67,36 +78,44 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
         ]
         ```
 
+        ```py
+        type_instances = [
+            [(0, 1), (0, 2)]
+        ]
+        ```
+
+        Each function instance is stored as the field layout of the argument and return types.
+
+        Type annotations only specify constraints. The instances represent the field layout
+
+        ```py
+        class Thing:
+            def __init__(self, id, value):
+                self.id = id
+                self.value = value
+
+        Thing("id", 2.0) # Thing: {ptr[int],int,int|f64}
+        Thing(1.0, 2)    # Thing: {f64|int}
+        ```
+
     - IMPORTS
 
         Imports is a map of elements imported from other modules. Imported elements are not resolved at declaration point, until they get to used in the current module's code.
 
-        ```py
-        {
-            "name": SymbolInfo(
-                path="module.com",
-                alias=True
-            ),
-        }
-        ```
+- TYPE ID, INHERITANCE LISTS, SUBTYPE RANGE AND OVERRIDES
 
-- CONCRETE TYPE INDEX, INHERITANCE LISTS, SUBTYPE RANGE AND OVERRIDES
-
-    Each type gets two indices for easy identification. The first index points to the corresponding inheritance list and the second index (which is the type index) is used to identify the type within its inheritance tree.
+    Each type id contains two indices for easy identification. The first index points to the corresponding inheritance list and the second index (which is the type index) is used to identify the type within its inheritance tree.
 
     An inheritance list represents a single inheriatance tree and it is updated when a class is added to the tree. The types are stored in a pre-order manner in the inheritance list.
 
-    Each type index has an associated subtype range which is useful for type-checking and dynamic dispatch.
+    Each type id has an associated subtype range which is useful for type-checking and dynamic dispatch.
 
-    In addition to the subtype ranges, a type index also has an associated overriden methods
+    In addition to the subtype ranges, a type id also has an associated overriden methods
 
     ```py
-    lists = [
+    inheritance_lists = [
         [ # inheritance index 0
-            { # type index 0
-                "subtype_range": (0, 2)
-                "overrides": [...]
-            },
+            TypeInfo("int", subtype_range=(0,1), overrides=["__plus__"]) # type index 0
         ]
     ]
     ```
@@ -108,51 +127,75 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
     primitive types  | value
     -----------------|---------
     void             | 0.0
-    int              | ? -> i32 or i64 depending on paltform
-    i8               | 3.0
-    i16              | 4.0
-    i32              | 5.0
-    i64              | 6.0
-    uint             | ? -> u32 or u64 depending on paltform
-    u8               | 11.0
-    u16              | 12.0
-    u32              | 13.0
-    u64              | 14.0
-    ptr              | 17.0
+    int              | 1.0 -> i32 or i64 depending on paltform
+    i8               | 2.0
+    i16              | 3.0
+    i32              | 4.0
+    i64              | 5.0
+    uint             | 6.0 -> u32 or u64 depending on paltform
+    u8               | 7.0
+    u16              | 8.0
+    u32              | 9.0
+    u64              | 10.0
+    f32              | 11.0
+    f64              | 12.0
 
     Before codegen, the lists are merged into one, updating the type indices as well as their range.
 
 
 - GLOBAL DEALLOCATABLE LIST
 
-
-
 ----------
 
 ### SEMANTIC PROCESS
 
 ```py
-symbol_table = [
+symbols = [
     { # scope 0
         "typed": {
             "var": SymbolInfo(
+                kind=SymbolKind.Variable,
                 ast_ref=()
             ),
             "func": SymbolInfo(
+                kind=SymbolKind.Variable,
                 ast_ref=(),
+            ),
+            "Person": SymbolInfo(
+                kind=SymbolKind.Class,
+                ast_ref=(),
+                type_id=(13,1),
+                instances=[
+                    [(0, 1), (2, 0)]
+                ]
             )
         },
         "untyped": {
             "ls": SymbolInfo(
+                kind=SymbolKind.Variable,
                 ast_ref=(),
-                list_type_indices=[]
+                element_types=[(0, 1)]
             ),
         }
     },
 ]
 ```
 
-#### Semantic Objects
+The `SemanticVisitor` visits all ast nodes, checks for semantic consistency, gather semantic information and finally generates code. This is possible because requires declaration of symbols before usage.
+
+
+### Prelude
+
+```py
+class str:
+    def __init__(self, capacity: int = 10):
+        self.buffer = malloc[i8](10)
+        self.capacity = capacity
+        self.len = 0
+```
+
+
+### Semantic Objects
 - Class Definition
 - Function Definition
 - Assignment
@@ -191,13 +234,13 @@ symbol_table = [
         - ImagFloat/ImagInteger
         - String
         - ByteString
-    - Type
+    - Type ?
 
 
-#### Function Definition
+#### Function Signature
 
 **Semantic Checks**
-- Check params names do not conflict with each other
+- Check params names do not conflict with each other  ✅
 - Check params types exist
 - Check generics annotation names do not conflict with each other
 - Check generics annotation names do not conflict with existing names
@@ -206,13 +249,16 @@ symbol_table = [
 - Type check default values against their type annotations
 
 **Symbol Table Update**
-- Create a new scope in symbol table
-- Save function in symbol table
-- Save params, positional_only_params and keyword_only_params as variables in symbol table
-- Save tuple_rest_param as tuple variable in symbol table
-- Save named_tuple_rest_param as named tuple variable in symbol table
+- Save function in symbol table ✅
+- Create a new scope in symbol table  ✅
+- Save typed params in symbol table ✅
+- Save untyped list param in symbol table
 
 **Allowed Semantics**
 - Function name can conflict with existing allowing shadowing
 - Function param names can conflict with existing allowing shadowing
 
+#### Function Body
+
+
+#### Class Definition

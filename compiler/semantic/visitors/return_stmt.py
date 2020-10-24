@@ -11,17 +11,18 @@ class ReturnVisitor(Visitor):
     """
     """
 
-    def __init__(self, ast, state):
-        self.state = state
+    def __init__(self, ast, info):
+        self.return_stmt = ast
+        self.info = info
 
     def start_visit(self):
-        self.ast.accept(self)
+        self.return_stmt.accept(self)
 
-    def act(self, return_):
+    def act(self):
         """
         """
 
-        for ast in return_.exprs:
+        for ast in self.return_stmt.exprs:
             type_ = type(ast)
 
             if type_ == Integer:

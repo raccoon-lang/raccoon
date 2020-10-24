@@ -1,8 +1,9 @@
 from copy import deepcopy
 
 class CompilerOptions:
-    def __init__(self):
+    def __init__(self, target_code=None):
         self.verbose = False
+        self.target_code = target_code
 
     def __repr__(self):
         fields = deepcopy(vars(self))
