@@ -237,6 +237,22 @@ class str:
     - Type ?
 
 
+#### Assignment Statement
+
+**Semantic Checks**
+- Check identifiers in value expr exist
+- Check type of lhses exist
+
+**Type Checks**
+- Type check value against lhs type annotation or against type of value expr
+
+**Symbol Table Update**
+- Add lhses to symbol table
+
+**Allowed Semantics**
+- Lhs names can conflict with existing in assignment allowing shadowing
+- Lhs names can conflict with existing in parent scope allowing shadowing
+
 #### Function Signature
 
 **Semantic Checks**
@@ -255,8 +271,8 @@ class str:
 - Save untyped list param in symbol table
 
 **Allowed Semantics**
-- Function name can conflict with existing allowing shadowing
-- Function param names can conflict with existing allowing shadowing
+- Function name can conflict with existing in parent scope allowing shadowing
+- Function param names can conflict with existing in parent scope allowing shadowing
 
 #### Function Body
 

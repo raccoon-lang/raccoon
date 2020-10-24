@@ -1,12 +1,15 @@
 """
 """
-
-from abc import ABC
 from copy import deepcopy
+from platform import machine
 
-class Codegen(ABC):
+
+class Codegen:
     """
     """
+
+    def __init__(self):
+        self.word_size = 64 if '64' in machine() else 32
 
     def __repr__(self):
         fields = deepcopy(vars(self))

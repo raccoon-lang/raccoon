@@ -258,7 +258,6 @@ AssignmentStatement:
   - value_expr
   - type_annotation
 
-
 MainPath:
   - path_names
   - relative_level

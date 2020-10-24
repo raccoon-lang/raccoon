@@ -18,6 +18,7 @@ from compiler.ast import (
     ByteString,
     PrefixedString,
     Operator,
+    Call,
     AssignmentStatement,
     Function,
     Class,
@@ -25,8 +26,9 @@ from compiler.ast import (
 )
 from compiler.errors.semantic import SemanticError
 from compiler.semantic.visitors import (
-    AssignmentVisitor,
-    FunctionVisitor
+    AssignmentStatementVisitor,
+    CallVisitor,
+    FunctionVisitor,
 )
 from .info import SemanticInfo
 from utils import json_dumps
@@ -145,6 +147,10 @@ class SemanticVisitor(Visitor):
 
             if ty == Function:
                 FunctionVisitor(self.info, ast).start_visit()
+            elif ty == AssignmentStatement:
+                AssignmentStatementVisitor(self.info, ast).start_visit()
+            elif ty == Call:
+                CallVisitor(self.info, ast).start_visit()
             else:
                 pass
 

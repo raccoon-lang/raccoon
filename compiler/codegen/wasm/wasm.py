@@ -10,5 +10,6 @@ class WasmCodegen(Codegen):
     """
 
     def __init__(self, compiler_opts=CompilerOptions()):
+        super().__init__()
         self.module = []
         self.compiler_opts = compiler_opts

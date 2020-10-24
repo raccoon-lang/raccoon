@@ -101,10 +101,6 @@ class Parser:
 
     TODO:
         - Be sure to discard cache after getting program AST
-        - Discard irrelevant tokens
-            - Walk through program AST
-            - Move relevant tokens into a dictionary with index keys
-            - Discard old tokens
     """
 
     def __init__(self, tokens, compiler_opts=CompilerOptions()):

@@ -85,6 +85,12 @@ class SemanticInfo:
         else:
             self.symbols[-1]["untyped"][name] = symbol_info
 
+    def add_new_top_level_symbol(self, name, symbol_info, typed=True):
+        if typed:
+            self.symbols[0]["typed"][name] = symbol_info
+        else:
+            self.symbols[0]["untyped"][name] = symbol_info
+
     @staticmethod
     def get_codegen(compiler_opts):
         target_code = compiler_opts.target_code
@@ -125,11 +131,25 @@ class SemanticInfo:
         Get prelude symbols like str, int, etc.
         """
 
-        return [{
+        # Create top-level scope and add __raccoon_main__ to top-level
+        top = [{
             "name": "top",
-            "typed": {},
+            "typed": {
+                "__raccoon_main__": SymbolInfo(
+                    kind=SymbolKind.FUNCTION,
+                )
+            },
             "untyped": {}
         }]
+
+        # Create __raccoon_main__ scope
+        top.append({
+            "name": "__raccoon_main__",
+            "typed": {},
+            "untyped": {}
+        })
+
+        return top
 
     @staticmethod
     def get_prelude_ast():

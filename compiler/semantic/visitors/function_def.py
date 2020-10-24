@@ -98,7 +98,7 @@ class FunctionVisitor(Visitor):
         function_name_token = self.info.tokens[self.function.name.index]
 
         # Save function in symbol table
-        self.info.add_new_symbol(
+        self.info.add_new_top_level_symbol(
             function_name_token.data,
             SymbolInfo(
                 kind=SymbolKind.FUNCTION,

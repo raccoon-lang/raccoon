@@ -3,22 +3,19 @@
 from compiler import Visitor
 
 
-class AssignmentStatementVisitor(Visitor):
+class CallVisitor(Visitor):
     """
     """
 
     def __init__(self, info, ast):
-        self.assignment = ast
+        self.call = ast
         self.info = info
 
     def start_visit(self):
-        self.assignment.accept(self)
+        self.call.accept(self)
 
     def act(self, ast):
         """
         """
-
-        for ast in self.assignment.lhses:
-            pass
-
+        
         return False
