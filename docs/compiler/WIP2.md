@@ -22,19 +22,20 @@ I have outlined the entire processes of the new implementation below.
 
 This visitor copies all the tokens referenced by the AST and makes freeing the old list of tokens possible.
 
-#### SEMANTIC VISITOR
+### SEMANTIC VISITOR
 
 - SYMBOL TABLE
 
-    Symbol table is a stack of scopes. Each scope is a table of symbols and their information.
+    Symbol table is a list of scopes. Each scope is a table of symbols and their information.
 
-    Stack is chosen because, scopes are likely not to be highly nested.
+    Naturally scopes are stored in a pre-order fashion as the
 
     ```py
     symbols = [
-        { # scope 0
-            "name": "",
-            "typed": {
+        Scope( # scope 0
+            name="",
+            parent=0,
+            typed={
                 "var": SymbolInfo(
                     kind=SymbolKind.Variable,
                     ast_ref=()
@@ -50,15 +51,15 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
                         [(0, 1), (2, 0)]
                     ]
                 )
-            },
-            "untyped": {
+            }
+            untyped={
                 "ls": SymbolInfo(
                     kind=SymbolKind.Variable,
                     ast_ref=(),
                     element_types=[(0, 1)]
                 ),
             }
-        },
+        )
     ]
     ```
 
@@ -144,6 +145,15 @@ This visitor copies all the tokens referenced by the AST and makes freeing the o
 
 
 - GLOBAL DEALLOCATABLE LIST
+
+- TYPED AST
+
+    We don't generate typed AST since each instantiation will require type checking anyway.
+
+
+### CODEGEN VISITOR
+
+    
 
 ----------
 

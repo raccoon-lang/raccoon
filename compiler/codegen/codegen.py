@@ -8,17 +8,17 @@ class Codegen:
     """
     """
 
-    def __init__(self):
+    def __init__(self, semantic_info):
         self.word_size = 64 if '64' in machine() else 32
+        self.semantic_info = semantic_info
 
     def __repr__(self):
         fields = deepcopy(vars(self))
-        fields['kind'] = type(self).__name__
         string = ", ".join([f"{repr(key)}: {repr(val)}" for key, val in fields.items()])
         return "{" + string + "}"
 
-    def generate_function(self):
-        pass
+    def generate(self):
+        return self
 
     def dumps(self):
         pass

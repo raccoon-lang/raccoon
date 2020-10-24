@@ -11,7 +11,7 @@ from argument_handler import ArgumentHandler
 
 
 @click.command(options_metavar="[options]")
-@click.option("--version", "-v", is_flag=True, help="Shows toolchain version")
+@click.option("--version", "-v", is_flag=True, help="Prints toolchain version")
 @click.option(
     "-c",
     "--compile",
@@ -21,13 +21,13 @@ from argument_handler import ArgumentHandler
     type=str,
     metavar="<code>",
 )
-@click.option("--ast", is_flag=True, help="Outputs generated AST")
-@click.option("--tokens", is_flag=True, help="Outputs generated lexed tokens")
-@click.option("--sema", is_flag=True, help="Outputs generated lowered AST")
-@click.option("--ll", is_flag=True, help="Outputs generated llvm IR")
-@click.option("--wasm", is_flag=True, help="Outputs generated Webassembly")
+@click.option("--ast", is_flag=True, help="Prints AST")
+@click.option("--tokens", is_flag=True, help="Prints lexer tokens")
+@click.option("--sema", is_flag=True, help="Prints semantic information")
+@click.option("--ll", is_flag=True, help="Prints LLVM IR")
+@click.option("--wasm", is_flag=True, help="Prints Webassembly code")
 @click.option(
-    "-vv", "--verbose", is_flag=True, help="Outputs extra compiler infomation"
+    "-vv", "--verbose", is_flag=True, help="Prints debug information"
 )
 @click.argument(
     "program_file", nargs=1, required=False, type=click.Path(), metavar="[program file]"
