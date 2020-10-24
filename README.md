@@ -85,6 +85,16 @@ You can check [samples folder](#samples) for more examples.
     </p>
     </details>
 
+- [Binaryen](https://github.com/WebAssembly/binaryen) - Binaryen is needed to generate
+    <details>
+    <summary>Read more</summary>
+    <p>
+    You need to build binaryen as a dynamic library by following <a src="https://github.com/WebAssembly/binaryen#building">the instructions on the repo</a>.
+
+    Make sure generated dynamic library is accessible system-wide. You can save it under `/usr/local/lib`.
+    </p>
+    </details>
+
 ##### STEPS
 - Clone project
     ```sh
