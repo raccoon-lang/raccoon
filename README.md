@@ -48,7 +48,13 @@ print("Jane >", jane)
 
 You can check [samples folder](#samples) for more examples.
 
-### SETTING UP THE PROJECT
+### INSTALLATION
+
+Currently there is no simple binary installation set-up. This section will be updated when that becomes available.
+
+For now you have to build the project to get it working.
+
+### BUILDING THE PROJECT
 ##### REQUIREMENTS
 - [Python 3.8+](https://www.python.org/downloads/) - Python interpreter
 - [Pipenv](https://docs.pipenv.org/en/latest/install/#installing-pipenv) - Python package manager
@@ -57,7 +63,7 @@ You can check [samples folder](#samples) for more examples.
     <summary>Read more</summary>
     <p>
 
-    # macOS
+    ## macOS
 
     Install LLVM with [brew](https://brew.sh/)
 
@@ -66,7 +72,7 @@ You can check [samples folder](#samples) for more examples.
     ```
 
 
-    # Debian
+    ## Debian
 
     Install LLVM 8
 
@@ -75,7 +81,7 @@ You can check [samples folder](#samples) for more examples.
     ```
 
 
-    # Windows
+    ## Windows
 
     ...
 
@@ -85,13 +91,14 @@ You can check [samples folder](#samples) for more examples.
     </p>
     </details>
 
-- [Binaryen](https://github.com/WebAssembly/binaryen) - Binaryen is needed to generate
+- [Binaryen](https://github.com/WebAssembly/binaryen) (Optional) - Toolchain for generating and optimizing wasm files
     <details>
     <summary>Read more</summary>
     <p>
-    You need to build binaryen as a dynamic library by following <a src="https://github.com/WebAssembly/binaryen#building">the instructions on the repo</a>.
+    You need to build binaryen as a dynamic library by following the instructions here:
+    https://github.com/WebAssembly/binaryen#building
 
-    Make sure generated dynamic library is accessible system-wide. You can save it under `/usr/local/lib`.
+    Make sure generated dynamic library is accessible system-wide. On Linux and macOS platforms, you can save the library in `/usr/local/lib` directory.
     </p>
     </details>
 
