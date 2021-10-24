@@ -118,6 +118,8 @@
 
     - Objects shared between threads will need runtime reference counting of forks.
 
+        - In this case, the commpiler may note thread boundaries and apply an ownership semantics similar to Rust.
+
 
     ##### HOW IT PREVENTS REFERENCE CYCLES
 
