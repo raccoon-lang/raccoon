@@ -15,13 +15,13 @@ def add(a, b):
 
 - `[ T: impl __plus__.2 ]` reads as:
 
-    T is a type that implements __plus__ method that takes 2 arguments 
+    T is a type that implements `__plus__` method that takes 2 arguments 
 
 - `(a: any T.0, b: any T.1)` reads as:
 
-    a is a ref/val of some type T that implements a method where `__plus__` a is the first argument.
+    a is a ref/val of some type T that implements a method `__plus__` where a is the first argument.
     
-    b is a ref/val of some type T that implements a method where `__plus__` b is the second argument.
+    b is a ref/val of some type T that implements a method `__plus__` where b is the second argument.
 
 - `any` represents `ref` or `val` of the type.
 
