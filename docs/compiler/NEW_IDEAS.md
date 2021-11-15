@@ -140,7 +140,7 @@ Just like with untyped or generic functions, where the usage of the argument det
 
 In the example above, both `StringGiver` and `IntGiver` define a `gift` method which they implement from `Giver`. So `givers` has type `List[dyn gift.1]`. Notice that we didn't say `List[dyn Givers]` since they share a parent type, `Givers`. That is because the information is not useful as all objects share a common parent `Any` (not a finalised name).
 
-So the following is valid in Raccoon because all object share a root parent type. The type of this is `List[dyn void]`
+So the following is valid in Raccoon because all object share a root parent type. The type of this is `List[dyn _]` because it is not yet clear what functions the element use, which determines their `impl`.
 
 ```py
 ls = [5, "Hello"]
@@ -297,7 +297,7 @@ A concrete type is contructed for it like this:
 
 ```py
 @where(A: [int], C: Closure[A, def(A, int) -> int])
-class UniqueClosure[C]:
+class UniqueClosure[A, C]:
     def __init__(self, capture: A, fn: F):
         self.capture = capture
         self.fn = fn
