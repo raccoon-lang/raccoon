@@ -221,15 +221,15 @@ The example above can be desugared into the following:
 abstract class AbstractPrimaryColor:
     pass
 
-@(inherit: AbstractPrimaryColor)
+@implements(AbstractPrimaryColor)
 data class Red(t: byte):
     pass
         
-@(inherit: AbstractPrimaryColor)
+@implements(AbstractPrimaryColor)
 data class Green(t: byte):
     pass
         
-@(inherit: AbstractPrimaryColor)
+@implements(AbstractPrimaryColor)
 data class Blue(t: byte):
     pass
 
@@ -315,6 +315,70 @@ The caveat however is that, operations like the one below, that you would expect
 ```py
 double = ls[0] + ls[0] # Error type of ls[0] can either be str or int and there is no __plus__(int, str) or __plus__(str, int)
 ```
+
+##
+
+You may wonder how the compiler resolves the type of `mixed` variable in the following example to a dynamically dispatched type.
+
+```py
+class Vec[T]:
+    def __init__(self, capacity: int):
+        self.length = 0
+        self.capacity = capacity
+        self.buffer = Buffer[T](capacity) 
+
+    def append(self, item: T):
+        if self.length >= capacity:
+            self.resize()
+        self.buffer.alloc(self.length + 1, item)
+        self.length += 1
+    
+    # ...
+
+mixed = Vec() # T resolves to `[ dyn __str__.0, ... ]`
+mixed.append(1) # T is int here
+mixed.append("Hello") # T is str here
+
+print(mixed[0]) # Final resolution is based on this shared method.
+```
+
+The reason this works is because Buffer implements `dyn _`.
+
+```py
+# Buffer implementation for dynamic types. 
+# `_` means the final type is decided by the total usage of the field.
+@where(T: dyn _) 
+class Buffer[T]:
+    def alloc(self, position: int, item: T):
+        # ...
+
+# Buffer implementation for other types with known compile-time shape. 
+# Concrete types instantiated from __impl__ and intersection types.
+class Buffer[T]: 
+    def alloc(self, position: int, item: T):
+        # ...
+```
+
+`Buffer[T]` gets its final type from `Vec[T]`. And since Buffer allows a `T: dyn _`, the usage of the instance method `Vec.append.T` with different types `int` and `str` made it resolve into a `dyn _`. 
+
+Any method argument that holds a value of such `T` will then be given a reference/pointer to the tagged value which will be stored on the heap. Which is the case for `append`'s `item` parameter. Raccoon does not support `dyn _` fields or variables.
+
+Another thing worth noting is that even though the compiler resolves a `dyn _` to a dyn of field and method implementations (e.g. `[dyn __str__.0]`), the compiler does not forget (erase) the actual types in subsequent resolutions.
+
+```py
+values = [1, "Hello"] # [ dyn deep_copy.0, ... ]
+
+# ...
+
+def copy_first(ls): 
+    return ls[0].deep_copy()
+
+# copy_first can return int or str.
+# new_copy has type `int & str`.
+new_copy = copy_first(values) # def copy_first(dyn _) -> int & str 
+```
+
+This works because at the instantiation of `copy_first(values)`, the compiler still remembers the types behind `values: dyn _`. So it is able to check the return types of all the methods of `int & str`.
 
 ## Type Casting
 
