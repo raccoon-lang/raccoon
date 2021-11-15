@@ -175,7 +175,7 @@ t = unsafe()
 
 `unsafe` as used above has the instantiation `def unsafe() -> int & str`.
 
-`int & str` is implemented as C-like union type, which is purportedly optimizable by LLVM.
+`int & str` is implemented as a [tagged union](https://en.wikipedia.org/wiki/Tagged_union). On the other hand `dyn` objects are implemented as `[tag, ..fields]`in memory.
 
 `int` and `str` are variants of `int & str`.
 
@@ -187,6 +187,19 @@ double = x + x
 ```
 
 In places where there can be potentially many types, we use dynamic dispatch. This is true for container types.
+
+## Union Classes 
+
+Union classes are analogous to C union types. Their memory layout is determined by their largest field.
+
+```py
+union class JSNumber:
+    int: i64
+    float: f64
+
+JSNumber.float = 2.0
+print('0x{0:x}'.format(JSNumber.int)) # 0x4000000000000000
+```
 
 ## Enum Classes
 
@@ -243,7 +256,7 @@ def to_byte(variant: PrimaryColor): # This function can also be monomorphised.
 
 Because enum variants are regular classes, we can have specialized method for them.
 
-```
+```py
 def red_to_byte(color: PrimaryColor.Red): # This is a specialised function.
     return color.t
 ```
@@ -258,6 +271,8 @@ enum class Optional[T]:
     def unwrap(self): 
         return self.t # Error because None a variant of Optional[T] does not have a `t` field.
 ```
+
+https://rust-lang.github.io/unsafe-code-guidelines/layout/enums.html
 
 ## Dynamic Dispatch
 
@@ -300,6 +315,23 @@ The caveat however is that, operations like the one below, that you would expect
 ```py
 double = ls[0] + ls[0] # Error type of ls[0] can either be str or int and there is no __plus__(int, str) or __plus__(str, int)
 ```
+
+## Type Casting
+
+Most times the compiler won't be able to determine the type of variant or `dyn` object at compile-time. So it is useful to have type casting functions.
+
+```py
+ls = [5, "Hello"]
+
+int_value = cast[Int](ls[0])
+str_value = cast[Int](ls[1-1]) # Raises an error because type cannot be casted.
+```
+
+```py
+variant = get_color()
+red = cast[PrimaryColor.Red](variant) # Raises an error if type cannot be casted.
+```
+
 
 ## ref vs val
 
