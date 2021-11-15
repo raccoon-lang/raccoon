@@ -146,10 +146,11 @@ However, it will be nice to have Raccoon not diverge from Python too much
     Person == Person
 
     # Generics
-    class Person[T, U](A, B) where T < Person:
-        def __init__(self, name: T, age: U):
-            self.name = name
-            self.age = age
+    @where(N: ToStr, A: ToInt)
+    class Person[N, A](Mammal):
+        def __init__(self, name: N, age: A):
+            self.name = name.to_str()
+            self.age = age.to_int()
 
     jane = Person[str, int]('Jane Doe', 45)
 
@@ -272,7 +273,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
 - Additional reserved keywords
 
     ```py
-    dyn, new, abstract, data, const, ref, ptr, val, match, let, var, interface, where, macro, typealias
+    union, enum, dyn, new, abstract, data, const, ref, ptr, val, match, let, var, interface, where, macro, typealias
     ```
 
 
