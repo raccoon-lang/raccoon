@@ -19,8 +19,9 @@ def add(a, b):
 
 - `(a: any T.0, b: any T.1)` reads as:
 
-    a is a ref/val of some type T that implements a method `__plus__` a is the first argument.
-    b is a ref/val of some type T that implements a method `__plus__` b is the second argument.
+    a is a ref/val of some type T that implements a method where `__plus__` a is the first argument.
+    
+    b is a ref/val of some type T that implements a method where `__plus__` b is the second argument.
 
 - `any` represents `ref` or `val` of the type.
 
@@ -73,10 +74,12 @@ The `interface contract` of `iterate_gift` looks like this.
         W: impl __str__.1, 
         X: str,
     ](
-        a: ref T where [
-            T returns U & V where [
-                V returns W where [
-                    W returns X
+        a: any T.0 where [                    // a is something that implements T at pos 0 
+            T returns any U.0 where [         // T returns something that implements U at pos 0
+                U returns any V.0 where [     // U returns something that implements V at pos 0
+                    V returns any W.0 where [ // V returns something that implements W at pos 0
+                        W returns any X       // W returns X
+                    ]
                 ]
             ]
         ]
@@ -95,13 +98,16 @@ s = iterate_gift(StringGiver()) # s has type `str` from the instantiation of ite
 
 Here `iterate_gift` has the following `interface contract`:
 
+
     [ 
         T: impl gift.1, 
         U: impl __iter__.1, 
-        V: impl __next__.1,
+        V: impl __next__.1
     ](
-        a: any T where [
-            T returns U & V
+        a: any T.0 where [            // a is something that implements T at pos 0 
+            T returns any U.0 where [ // T returns something that implements U at pos 0
+                U returns any V.0     // U returns something that implements V at pos 0
+            ]
         ]
     )
 
@@ -109,6 +115,149 @@ Here `iterate_gift` has the following `interface contract`:
 
 As mentioned before, what you do with the arguments of an untyped function determines the `interface contract` and the kind of monormorphisation allowed.
 
+## Common Fields
+
+We have seen above that the methods you use with an argument determine the interface contract of an untyped function. This is also true for the fields of an argument.
+
+```py
+def who_am_i(something):
+    print(f"I am {something.name}")
+```
+
+`who_am_i` will only work for arguments that have a name method. The interface contract of `who_am_i` looks like this:
+
+
+    [ 
+        T: impl [name],
+        U: impl __str__.1, 
+        V: str,
+    ](
+        a: any T where [        // a is something that implements T (a field) 
+            T: any U.0 where [  // T is something that implements U at pos 0
+                U returns V     // U returns V
+            ]
+        ]
+    )
+
+Notice the `impl [name]` syntax. It used to refer to a field. `impl func.x` is used for methods.
+
+Also notice that we use `T: any U.0` syntax for fields just like arguments because they are values that must also conform to some implementation.
+
+## Generics
+
+Generics are useful for restricting an interface contract further because it allows certain conditional semantics that a developer may desire.
+
+```py
+@where(T: < Seq, U: < Seq) # Reads as where T is a subtype of Seq. Speculative syntax and type.
+def any_common_elements(l: T, r: U) -> bool:
+    for (a, b) in zip(a, b):
+        if a == b:
+            return true
+
+    return false
+
+any_common_elements([1, 2, 3], {4, 5, 3}) # true
+```
+
+## Intersection Types and Type Safety
+
+Raccoon handles type safety differently. For example, when a function can return multiple types at runtime, Raccoon returns an intersection of both types.
+
+```py
+def unsafe():
+    if cond():
+        return StringGiver().gift()
+    else:
+        return IntGiver().gift()
+
+t = unsafe()
+```
+
+`unsafe` as used above has the instantiation `def unsafe() -> int & str`.
+
+`int & str` is implemented as C-like union type, which is purportedly optimizable by LLVM.
+
+`int` and `str` are variants of `int & str`.
+
+Intersection types are similar to `dyn AbstractClass`, except that they are used in places where the compiler can easily determine number of types like enum variants, unsafe return types, etc. 
+
+```py
+x: int & str = get_int_or_str()
+double = x + x
+```
+
+In places where there can be potentially many types, we use dynamic dispatch. This is true for container types.
+
+## Enum Classes
+
+Enum classes are intersection types and their variants normal classes.
+
+```py
+enum class PrimaryColor:
+    Red(t: byte)
+    Green(t: byte)
+    Blue(t: byte)
+
+    def to_byte(self): 
+        return self.t # Okay because the variants all have common field type
+```
+
+The example above can be desugared into the following:
+
+```py
+abstract class AbstractPrimaryColor:
+    pass
+
+@(inherit: AbstractPrimaryColor)
+data class Red(t: byte):
+    pass
+        
+@(inherit: AbstractPrimaryColor)
+data class Green(t: byte):
+    pass
+        
+@(inherit: AbstractPrimaryColor)
+data class Blue(t: byte):
+    pass
+
+typealias PrimaryColor = Red & Green & Blue
+
+def to_byte(variant: PrimaryColor): # This function is monomorphisable.
+    return variant.t
+```
+
+The only thing we didn't capture here is the `PrimaryColor.Variant` namespace.
+
+In the examples above, notice that the enum's variants share a single method `to_byte` that apply to all variants. We could have also used match, which through exhaustion allows monomorphisation.
+
+```py
+def to_byte(variant: PrimaryColor): # This function will be monomorphised.
+    return variant.t
+    
+def to_byte(variant: PrimaryColor): # This function can also be monomorphised.
+    match variant:
+       Red(t): return t
+       Blue(t): return t
+       Green(t): return t
+```
+
+Because enum variants are regular classes, we can have specialized method for them.
+
+```
+def red_to_byte(color: PrimaryColor.Red): # This is a specialised function.
+    return color.t
+```
+
+Methods and fields accessed on an intersection type must apply to all the variants.
+
+```py
+enum class Optional[T]:
+    Some(t: T)
+    None
+
+    def unwrap(self): 
+        return self.t # Error because None a variant of Optional[T] does not have a `t` field.
+```
 
 ## Dynamic Dispatch
 
@@ -152,32 +301,7 @@ The caveat however is that, operations like the one below, that you would expect
 double = ls[0] + ls[0] # Error type of ls[0] can either be str or int and there is no __plus__(int, str) or __plus__(str, int)
 ```
 
-## Intersection Types and Type Safety
-
-Raccoon handles type safety differently. When a function can return multiple types at runtime. Raccoon returns an intersection of both types.
-
-```py
-def unsafe():
-    if cond():
-        return StringGiver().gift()
-    else:
-        return IntGiver().gift()
-
-t = unsafe()
-```
-
-`unsafe` as used above has the instantiation `def unsafe() -> int & str`.
-
-`int & str` is a C-like union type. This is purportedly optimizable by LLVM.
-
-Intersection types are similar to `impl X` interfaces, except that they can only be resolved at runtime and they are only used with function return types. In other places, we use dynamic dispatch.
-
-```py
-x: int & str = get_int_or_str()
-double = x + x
-```
-
-### ref vs val
+## ref vs val
 
 By default, primitive types are passed around by value.
 
@@ -197,7 +321,7 @@ foo(john) # same applies here.
 
 You can change that behavior by using `ref` and `val` respectively.
 
-### Heap Allocation
+## Heap Allocation
 
 By default, objects are allocated on the stack.
 
