@@ -128,17 +128,17 @@ However, it will be nice to have Raccoon not diverge from Python too much
     # Type argument
     nums: list[int] = []
 
-    # Optional type
+    # Optional type (Undecided)
     age: int? = 45
 
     # Function type
-    fn: (int, int) -> int = sum
+    fn: def (int, int) -> int = sum
 
     # Tuple type
     value: (int, int) = (1, 2, 3)
 
-    # Union type
-    identity: int | str = 'XNY7V40'
+    # Intersection type
+    identity: int & str = 'XNY7V40'
 
     # Type relationship
     Person < Mammal
@@ -226,7 +226,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
 - Type alias
 
     ```py
-    alias IdentityFunc[T] = (T) -> T
+    typealias IdentityFunc[T] = (T) -> T
     ```
 
 - Character
@@ -479,54 +479,4 @@ However, it will be nice to have Raccoon not diverge from Python too much
         mov eax, [esi-4]    ; Move 4 bytes at memory address ESI + (-4) into EAX
         mov [esi+eax], cl   ; Move the contents of CL into the byte at address ESI+EAX
         """
-    ```
-
-- Goroutine-like green threads
-
-    Replace async functions with goroutine-like green thread implementation.
-
-    ```py
-    import time
-
-    c1: chan[str]
-    c2: chan[str]
-
-    def count(sec: int, c: chan[str]<-):
-        while True:
-            c <- f"Every {sec}s"
-            time.sleep(sec)
-
-    async count(1, c1)
-    async count(2, c1)
-
-    while True:
-        # if-elif-else acts like select-case
-        if msg := <- c1:
-            print(msg)
-        elif msg := <- c2:
-            print(msg)
-    ```
-
-    OR
-
-    ```py
-    import time
-
-    c1: Chan[str]
-    c2: Chan[str]
-
-    def count(sec: int, c: SendChan[str]):
-        while True:
-            send(c, f"Every {sec}s")
-            time.sleep(sec)
-
-    async count(1, c1)
-    async count(2, c1)
-
-    while True:
-        # if-elif-else acts like select-case
-        if msg := recv(c1):
-            print(msg)
-        elif msg := recv(c2):
-            print(msg)
     ```
