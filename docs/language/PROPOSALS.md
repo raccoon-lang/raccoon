@@ -273,7 +273,7 @@ However, it will be nice to have Raccoon not diverge from Python too much
 - Additional reserved keywords
 
     ```py
-    union, enum, dyn, new, abstract, data, const, ref, ptr, val, match, let, var, interface, where, macro, typealias
+    Self, union, enum, dyn, new, abstract, data, const, ref, ptr, val, match, let, var, interface, where, macro, typealias
     ```
 
 
