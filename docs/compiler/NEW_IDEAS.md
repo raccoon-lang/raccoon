@@ -318,7 +318,9 @@ double = ls[0] + ls[0] # Error type of ls[0] can either be str or int and there 
 
 ##
 
-You may wonder how the compiler resolves the type of `mixed` variable in the following example to a dynamically dispatched type.
+:warning: This section is unfinished and contains a rough idea of how I want things to work.
+
+You may wonder how the compiler determines the type of a container that stores values of different types.
 
 ```py
 class Vec[T]:
@@ -380,6 +382,14 @@ new_copy = copy_first(values) # def copy_first(dyn _) -> int & str
 
 This works because at the instantiation of `copy_first(values)`, the compiler still remembers the types behind `values: dyn _`. So it is able to check the return types of all the methods of `int & str`.
 
+## Memory Layouting
+
+Raccoon's memory layouting is mostly inspired by Rust's.
+
+https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p
+https://github.com/pretzelhammer/rust-blog/blob/master/posts/sizedness-in-rust.md
+
+
 ## Type Casting
 
 Most times the compiler won't be able to determine the type of variant or `dyn` object at compile-time. So it is useful to have type casting functions.
@@ -396,46 +406,82 @@ variant = get_color()
 red = cast[PrimaryColor.Red](variant) # Raises an error if type cannot be casted.
 ```
 
-
 ## ref vs val
 
-By default, primitive types are passed around by value.
+By default primitive types are passed around by value and complex types by reference.
 
 ```py
-salary = 4500 # salary statically refers to a location on the stack.
-new_salary = salary # value 5 of salary is copied.
-foo(salary) # value 5 of salary is copied.
+age  = 55                 # primtive types are stack-livable so they are passed around by value.
+name = "John"             # stack-livable part of a complex type are passed around by reference.
+john = Person(name, john) # stack-livable part of a complex type are passed around by reference.
 ```
 
-By default, complex types are passed around by reference.
+What is stack-livable? This is the part of a complex type that can live on the stack. Primitive types are always stack-livable.
+
+To get a reference to a stack-allocated primitive type, use `ref`.
 
 ```py
-john = Person(name="John", age=55)  # john also statically refers to a location on the stack.
-same_person = john # however instead of copying the value of John, a reference (or a pointer) to the value is created.
-foo(john) # same applies here.
+age_ref = ref age  # age_ref points to age on the stack.
 ```
 
-You can change that behavior by using `ref` and `val` respectively.
-
-## Heap Allocation
-
-By default, objects are allocated on the stack.
+To get the value of a complex type's stack-livable part, use `val`.
 
 ```py
-salary = 4500 # Allocated on the stack
-john = Person(name="John", age=55) # Allocated on the stack
+name_val = val name # name_val now contains a shallow copy of name's stack-livable part.
+
+def who_am_i(val person):
+    print(f"I am {person.name}")
+    
+who_am_i(john) # function takes a shallow copy of john's stack-livable part.
 ```
 
-To allocate on the heap, we need the `new` keyword which uses the default allocator.
+## Stack vs Heap Allocation
+
+Unlike other languages, by default the _stack-livable part of a ref object_ are stored in the heap, but Raccoon optimizes for the stack, so these parts are stored on the stack where possible.
 
 ```py
-salary = new 4500 # Allocated on the heap. Represents a pointer to such allocation.
-john = new Person(name="John", age=55) # Allocated on the heap. Represents a pointer to such allocation.
+age  = 45                
+name = "John"            # Stack-livable part allocated on the stack
+john = Person(name, age) # Stack-livable part allocated on the stack
 ```
 
-Where do you use `new`? Use heap allocated object when:
-- the object has a very large shape that could easily exhaust the stack.
-- you cannot statically determine the shape of object at compile-time. A flexible linked list implementation for example.
+Racoon only stores to the heap in the following scenario: if a longer-lived object captures a reference to a shorter-lived object, the referent is going to be stored in the heap.
+
+
+```py
+def get_person() -> Person:
+    age  = 55                # age lifetime ends in this scope
+    name = "John"            # name lifetime ends in this scope so it is converted to `name = Box("James")`
+    
+    # Person has a longer lifetime. 
+    # name's stack-livable part is stored on the heap.
+    # age is copied by value because it is a primitive type.
+    return Person(name, age) 
+
+def main():
+    person = get_person()
+```
+
+You can be explicit that you want a stack object to be Boxed.
+
+```py
+age   = 55
+name  = Box("John")       # "John" stack-livable part is stored on the heap.
+john  = Person(name, age) # Takes a copy of name which is a pointer to "James" on the heap
+```
+
+There is no way to tell the compiler you want to store an object on the stack, because it would be redundant or be a compiler error anyway.
+
+Say we had a `stack` keyword for making things stay on the stack.
+
+```py
+def get_person() -> Person:
+    age  = 55                
+    name = stack "James"     # name lifetime ends in this scope because we forced its stack-livable part to be allocated on the stack.
+    return Person(name, age) # Person now has a dangling reference to name's stack-livable part with undefined behavior
+```
+
+This is why the compiler does not have a way to force things to stay on the stack.
 
 ## Sync and Send
 
@@ -541,3 +587,4 @@ Should have similar semantics as coroutines in the language but instead of yield
 The standard library should provide a nice default multithreaded task scheduler just like it does with heap allocator.
 
 Reference Rust's future implementation and Tokio's scheduler implementation.
+
