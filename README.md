@@ -1,6 +1,6 @@
 <div align="center">
     <a href="#" target="_blank">
-        <img src="https://image.flaticon.com/icons/svg/2253/2253609.svg" alt="Raccoon Logo" width="140" height="140"></img>
+        <img src="https://raw.githubusercontent.com/raccoon-lang/raccoon/master/raccoon.svg" alt="Raccoon Logo" width="140" height="140"></img>
     </a>
 </div>
 
