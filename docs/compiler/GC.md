@@ -51,11 +51,13 @@
     print('Hello!')
     ```
 
-    Since lifetimes can be tracked statically, I don't see the runtime benefit of ARC.
+    ARC is useful when you have objects that are shared by multiple execution contexts (threads, etc.) since the compiler cannot determine the order in which the threads that reference the object end.
+
+   On the other hand, the compiler knows the lifetimes of objects that are statically known not to be shared between threads using escape analysis among other things. And there are a lot of these types of object.
 
 - Static Reference Tracking (SRT) [WIP]
 
-    I'm proposing a different style of ARC that is not susceptible to reference cycles and perhaps more efficient because ref counting is done at compile-time. I'm going to call it `Static Reference Tracking` for now because I am not aware of any literature on it.
+    Enter SRT. I'm proposing a different style of ARC that is not susceptible to reference cycles and perhaps more efficient because ref counting is done at compile-time. I'm going to call it `Static Reference Tracking` for now because I am not aware of any literature on it.
 
     Static Reference Tracking (SRT) is a deallocation technique that tracks objects' lifetimes at compile-time and can break reference cycles statically.
 
@@ -93,7 +95,9 @@
 
     ##### GLOBAL DEALLOCATABLE LIST
 
-    Each thread/coroutine has its own global deallocatable list.
+    Each thread has its own global deallocatable list since this model doesn't work with objects shared between threads anyway.
+    
+    The compiler sets the GLOBAL_DEALLOCATABLE_LIST at compile time.
 
     ```
     GLOBAL_DEALLOCATABLE_PTR -> GLOBAL_DEALLOCATABLE_LIST
@@ -106,7 +110,7 @@
     }
     ```
 
-    In this case, `foo` lays out how it wants inner functions to deallocate its objects.
+    In this case, the compiler lays out how the inner functions of `foo` can deallocate its transferred objects.
 
     ##### CAVEATS
     - Inner functions cannot deallocate arguments until scope ends.
@@ -117,8 +121,6 @@
     - Guarantees are broken if Raccoon code interoperates with non-Raccoon code.
 
     - Objects shared between threads will need runtime reference counting of forks.
-
-        - In this case, the commpiler may note thread boundaries and apply an ownership semantics similar to Rust.
 
 
     ##### HOW IT PREVENTS REFERENCE CYCLES
