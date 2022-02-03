@@ -111,11 +111,11 @@ For now you have to build the project to get it working.
 - Currently the compiler can only generate tokens and AST from source files.
 
     ```sh
-    cli/raccoon samples/test.ra --tokens
+    cli/raccoon.py samples/class.ra --tokens
     ```
 
     ```sh
-    cli/raccoon samples/test.ra --ast
+    cli/raccoon.py samples/class.ra --ast
     ```
 
 ### LICENSE
