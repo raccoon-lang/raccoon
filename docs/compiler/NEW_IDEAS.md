@@ -11,17 +11,17 @@ def add(a, b):
 
 `add` has the following interface contract: 
 
-    [ T: impl __plus__.2 ](a: any T.0, b: any T.1)
+    [ T: impl __plus__.2 ](a: any T.__plus__.0, b: any T.__plus__.1)
 
 - `[ T: impl __plus__.2 ]` reads as:
 
     T is a type that implements `__plus__` method that takes 2 arguments 
 
-- `(a: any T.0, b: any T.1)` reads as:
+- `(a: any T.__plus__.0, b: any T.__plus__.1)` reads as:
 
-    a is a ref/val of some type T that implements a method `__plus__` where a is the first argument.
+    a is the reference or value of some type that can be passed as first argument to method `T.__plus__`.
     
-    b is a ref/val of some type T that implements a method `__plus__` where b is the second argument.
+    b is the reference or value of some type that can be passed as first argument to method `T.__plus__`.
 
 - `any` represents `ref` or `val` of the type.
 
@@ -35,7 +35,7 @@ x = add(1, 2)
 
 The above illustration is an example of an `argument contract`. The arguments of `add` must **have types that can appear in certain positions of the `__plus__` function**.
 
-On the other hand, there also a `return contract` that an instantiation may need to satisfy.
+There is also a `return contract` that an instantiation may need to satisfy.
 
 Say we have an abstract class with a method that allows the implementor to return any type.
 
@@ -71,23 +71,16 @@ The `interface contract` of `iterate_gift` looks like this.
         T: impl gift.1, 
         U: impl __iter__.1, 
         V: impl __next__.1,
-        W: impl __str__.1, 
-        X: str,
+        W: impl __str__.1,
     ](
-        a: any T.0 where [                    // a is something that implements T at pos 0 
-            T returns any U.0 where [         // T returns something that implements U at pos 0
-                U returns any V.0 where [     // U returns something that implements V at pos 0
-                    V returns any W.0 where [ // V returns something that implements W at pos 0
-                        W returns any X       // W returns X
-                    ]
-                ]
-            ]
+        giver: any T.0,
+        @where [                                  // a is something that implements T at pos 0 
+            T.gift returns any U.__iter__.0,     // T.gift returns something that implements U at pos 0
+            U.__iter__ returns any V.__next__.0, // U.__iter__ returns something that implements V at pos 0
+            V.__next__ returns any W.__str__.0,  // V.__next__ returns something that implements V at pos 0
         ]
+        @returns W.__str__
     )
-
-There should always be a `base concrete type` resolution. Like `X: str` in the above example. You can think of it as a `base condition` needed to prevent a recursive function from hypothetically looping forever.
-
-The only time a `base concrete type` may not be reached is when the value is returned.
 
 ```py
 def iterate_gift(giver: Giver):
@@ -102,13 +95,14 @@ Here `iterate_gift` has the following `interface contract`:
     [ 
         T: impl gift.1, 
         U: impl __iter__.1, 
-        V: impl __next__.1
+        V: impl __next__.1,
     ](
-        a: any T.0 where [            // a is something that implements T at pos 0 
-            T returns any U.0 where [ // T returns something that implements U at pos 0
-                U returns any V.0     // U returns something that implements V at pos 0
-            ]
+        a: any T.0, 
+        @where [                                  // a is something that implements T at pos 0 
+            T.gift returns any U.__iter__.0,     // T returns something that implements U at pos 0
+            U.__iter__ returns any V.__next__.0, // U returns something that implements V at pos 0
         ]
+        @returns V.__next__
     )
 
 `iterate_gift` as used above has the instantiation `iterate_gift(void) -> str`. `void` because `StringGiver` has no field, so no space is allocated for it.
@@ -128,20 +122,74 @@ def who_am_i(something):
 
 
     [ 
-        T: impl [name],
-        U: impl __str__.1, 
-        V: str,
+        T: impl __str__.1
     ](
-        a: any T where [        // a is something that implements T (a field) 
-            T: any U.0 where [  // T is something that implements U at pos 0
-                U returns V     // U returns V
-            ]
-        ]
+        something: any {
+            name: T.__str__.0
+        },
+        @returns T.__str__
     )
 
 Notice the `impl [name]` syntax. It used to refer to a field. `impl func.x` is used for methods.
 
 Also notice that we use `T: any U.0` syntax for fields just like arguments because they are values that must also conform to some implementation.
+
+## Additional Example
+
+```py
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    
+    def __plus__(self, other):
+        return Point(self.x + other.x, self.y + other.y)
+
+def add(a, b):
+    return a + b
+
+point1 = Point(1, 2)
+point2 = Point(3, 4)
+
+print(point1 + point2)
+```
+
+    add: [T: impl __plus__] (
+        self: T.__plus__.0,
+        other: T.__plus__.1,
+        @returns T.__plus__
+    )
+
+    __plus__: [
+        T: impl __plus__.2,
+        U: impl __init__Point.2,
+    ] (
+        self: {
+            x: T.__plus__.0,
+            y: T.__plus__.0,
+        },
+        other: {
+            x: T.__plus__.1,
+            y: T.__plus__.1,
+        },
+        @where [
+            T.__plus__ returns U.__init__Point.0,
+            T.__plus__ returns U.__init__Point.1,
+        ],
+        @returns U.__init__Point
+    )
+
+    __init__Point: [ T: __new__.2 ] (
+        x: T.__new__.0,
+        y: T.__new__.1,
+        @returns T.__new__
+    )
+
+    let point1 { x: usize, y: usize } = __init__Point#1(1, 2) // Object Instantiation. __init__Point#1(usize, usize) an instantiation made here.
+    let point2 { x: usize, y: usize } = __init__Point#1(3, 4) // Object Instantiation
+
+    let tmp = __plus__#1(point1, point2) // Object Instantiation. __plus__#1(Point, Point) an instantiation made here.
+
 
 ## Generics
 
