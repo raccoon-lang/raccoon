@@ -1,25 +1,4 @@
-Each will be properly fleshed out as an RFC later.
-However, it will be nice to have Raccoon not diverge from Python too much
-
 ## POSSIBLE ADDITIONS
-
-- Calling C
-
-  ```py
-  @extern('C')
-  def sleep(seconds: i32) -> i32
-  ```
-
-  `extern` block
-
-  ```py
-  @extern('C'):
-      def sleep(seconds: i32) -> i32
-      def echo(chars: ptr char, len: i32)
-
-  ```
-
-  When declaring a C function, types are required because the interface expects types
 
 - Multiline lambda expression
 
@@ -75,21 +54,20 @@ However, it will be nice to have Raccoon not diverge from Python too much
 
 - Updated type annotation & generics [In Progress]
 
+  Raccoon's types are not erased, so they are available at runtime.
+
   ```py
   # Type anotation
   index: int = 9
 
-  """
-  ERROR
-
-  index: int  # variable needs to be initialized.
-  """
-
   # Type argument
   nums: list[int] = []
 
-  # Optional type (Undecided)
+  # Optional type
   age: int? = 45
+
+  # Result type
+  age: int! = get_age()
 
   # Function type
   fn: def (int, int) -> int = sum
@@ -99,32 +77,43 @@ However, it will be nice to have Raccoon not diverge from Python too much
   value: (int, *str) = (1, "hello", "world")
 
   # Intersection type
-  identity: int & str = 'XNY7V40'
+  identity: int & str = "XNY7V40"
 
-  # Type relationship
-  Person < Mammal
-  Mammal > Person
-  Person == Person
+  # Type comparison
+  Dog < Pet
+  Pet > Dog
+  Dog == Dog
 
   # Generics
-  @where(N: ToStr, A: ToInt)
-  class Person[N, A](Mammal):
-      def init(self, name: N, age: A):
-          self.name = name.to_str()
-          self.age = age.to_int()
+  @impl(Sequence).where(N: int)
+  enum class TinyList[T, const N]:
+      Inline([T, N])
+      Heap([T])
+  ```
 
-  jane = Person.[str, int]('Jane Doe', 45)
+  You can omit the type of a function
 
-  class StaticArray[const N, T]:
-      def init(self):
-          self.buffer = Buffer[N, T]()
+  ```py
+  def foo(x):
+      x + 1
+
+  y = foo(1)
+  ```
+
+  But when you specify the argument types, you must also specify the return type
+
+  ```py
+  def foo(x: int) -> int:
+      x + 1
+
+  y = foo(1)
   ```
 
 - More operators [In Progress]
 
   ```py
-  class Num:
-      @where(T: Integral)
+  @where(T: Number)
+  class Num[T]:
       def init(self, value: T):
           self.value = value
 
@@ -132,10 +121,10 @@ However, it will be nice to have Raccoon not diverge from Python too much
           Num(self.value + other.value)
 
       def sqrt(self):
-          Num(√(self.val))
+          Num(√(self.value))
 
-      def sq(self):
-          Num(self.val²)
+      def square(self):
+          Num(self.value²)
 
   a, b = Num(2), Num(3)
 
@@ -144,73 +133,36 @@ However, it will be nice to have Raccoon not diverge from Python too much
   squared = a²
   ```
 
-- Progressive Linting
-
-  - Structural polymorphism can be made an error or warning
-
-    ```py
-    def foo(x): # error or warning
-        x + x
-
-    foo(1)
-    foo("hello")
-    ```
-
-  - Non-zero-cost abstraction can be made an error or warning
-
-    ```py
-    def get_name(x):
-        x.name # error or warning
-    ```
-
-    ```py
-    data class Node(parent: Node?, children: [Node])  # error or warning
-    ```
-
-    ```py
-    class Engine:
-        def init(self):
-            self.context = Context()
-            self.module = Module(self.context) # error or warning
-    ```
-
 - Macro metaprogramming [In Progress]
 
-  Raccoon's decorators are macros.
+  Raccoon's decorators are macros and they are unhygenic.
 
   ```py
-  @test("Hello world!")
-
-  @test "Hello world!"
-
-  @test:
-      print("Hello world!")
-
-  @test(info)
-  def foo():
-      print("Hello world!")
+  @macro
+  def test(attr: TokenStream[Attr]) -> AST:
+      # ...
+      pass
 
   @macro
-  def test(string: StrLiteral):
-      @quote:
-          print("starting game")
+  def test(block: Tree[Block]) -> AST:
+      # ...
+      pass
 
   @macro
-  def test(block: Block):
-      statements = block.statements
-      @quote:
-          @(statements)
+  def test(attr: TokenStream[Attr], block: TokenStream[Block]) -> AST:
+      # ...
+      pass
 
   @macro
-  def test(fn: Function):
-      Function(
+  def test(attr: TokenStream[Attr], fn: Tree[Fn]) -> AST:
+      Fn {
           name,
           generics,
           args,
           return_type,
           where_clause,
           body
-      ) = fn
+      } = tree.value
 
       @quote:
           def @(name) @(generics) ( @(args) ) -> @(return_type) @(where_clause):
@@ -218,11 +170,35 @@ However, it will be nice to have Raccoon not diverge from Python too much
               @(body.statements)
   ```
 
-  When calling macros, you can omit the parentheses.
+  There are multiple ways of using a macro depending on the type of the argument.
 
-  Macros cannot reference variables outside their scope. Macros cannot have loops as well.
+  ```py
+  @test("Hello world!")
 
-- Function declaration
+  @test:
+      print("Hello world!")
+
+  @test(first):
+      print("Hello world!")
+
+  @test(info)
+  def foo():
+      print("Hello world!")
+  ```
+
+  You can also chain macros
+
+  ```py
+  @base(Pet).impl(Debug)
+  pub data class Dog(name: str, age: int):
+      def debug(self, fmt):
+          fmt.debug_class("Dog")
+              .field("name", self.name)
+              .field("age", self.age)
+              .finish()
+  ```
+
+- Function declaration syntax
 
   ```py
   def add(a: int, b: int) -> int
@@ -256,26 +232,83 @@ However, it will be nice to have Raccoon not diverge from Python too much
   regex = /\d+/;
   ```
 
+  Regex literal with `/.../` syntax is notoriously hard to lex.
+  In Racoon's case we need to make sure no expression-type token comes before it.
+  Although this makes the lexer more complicated.
+
+- The no_wrap macro
+
+  You can define your enum so that a particular variant does not need to be wrapped to be passed as a value to the enum.
+  This only works for variants with a single field and can only be applied to one variant under an enum.
+  This is how the `Option` and `Result` are defined.
+
+  ```py
+  pub enum class Option[T]:
+      @no_wrap
+      Some(T)
+      None
+  ```
+
+  So we don't have to wrap `result` in `Some` here
+
+  ```py
+  def get_age(self) -> Result[u8]:
+      result = self.some_calc()
+      if result < 0:
+          raise Error("Age cannot be negative")
+      else:
+          result
+  ```
+
+  The same applies here
+
+  ```py
+  mut age: Option[u8] = 0
+  ```
+
 - `?` operator [In Progress]
 
   ```py
   def get_surname(p: Person) -> Option[str]: # Also def get_surname(p: Person) -> str?
       (_, _, lastname) = p.get_names()?
-      return lastname
+      lastname
   ```
 
 - `!` operator [In Progress]
 
-```py
-def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch_peer_addr(net: Network, id: [u8; 16]) -> str!
-    Peer { addr, .. } = net.fetch_peer(id)!
-    return addr
-```
+  ```py
+  def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch_peer_addr(net: Network, id: [u8; 16]) -> str!
+      Peer { addr, .. } = net.fetch_peer(id)!
+      addr
+  ```
+
+- List and Array type annotation
+
+  Dynamic list
+
+  ```py
+  nums: List[int] = [1, 2, 3, 4] # or
+  nums: [int] = [1, 2, 3, 4]
+  ```
+
+  Sized array
+
+  ```py
+  nums: Array[int, 4] = [1, 2, 3, 4] # or
+  nums: [int, 4] = [1, 2, 3, 4]
+  ```
+
+  Unsized array
+
+  ```py
+  nums: Array[u8, *] = alloc.allocate_zeroed(Layout(10, 8)!)! # or
+  nums: [u8, *] = alloc.allocate_zeroed(Layout(10, 8)!)!
+  ```
 
 - Additional reserved keywords
 
   ```py
-  Self, union, enum, dyn, new, abstract, data, const, ref, ptr, val, match, let, mut, var, interface, where, macro, type
+  Self, union, enum, dyn, new, abstract, data, const, ref, ptr, val, match, let, mut, var, interface, where, macro, type, pub
   ```
 
 - UFCS
@@ -288,7 +321,7 @@ def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch
 
 - `mut` keyword
 
-  Raccoon variables are immutable by default.
+  Raccoon variables are immutable by default unless explicitly made mutable with the `mut` keyword.
 
   ```py
   def map(array, f):
@@ -328,6 +361,12 @@ def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch
   named_tup.name
   ```
 
+  Named tuple is still position-based when unpacking
+
+  ```py
+  (name, age) = named_tup
+  ```
+
 - Introducing more primitive types
 
   ```py
@@ -342,32 +381,33 @@ def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch
 
   ```py
   match x:
-      case Person(name, age): 1
-      case [x, y = 5, z]: y # List
-      case (x, y = 5, 10, *z): x # Tuple
-      case (x, y = 5, 10, **z): x # NamedTuple
-      case { x = 'x', y = 'y',  *z}: x # Set
-      case { x = 'x', y = 'y', **z}: x # Dict
-      case 10 | 11: x
+      case NormalClass { field1, .. }: field1
+      case DataClass(field1, _): field1
+      case [x, 5 as y, z]: y # List
+      case (x, 5 as y, 10, *z): x # Tuple
+      case (x, 5 as y, 10, **z): x # NamedTuple
+      case { "x", "y" as y,  *z}: x # Set
+      case { "x", "y" as y, **z}: x # Dict
+      case 10 | 11 as x: x
       case 0..89: 10
       case other: other
       case _: 11
   ```
 
-- `if-match` statement
+- `if-let` statement
 
   ```py
-  if match Person(name, age) = x:
+  if let Person { name, age } = x:
       print(name)
   else:
       print("Not a person")
   ```
 
-- `match-else` statement
+- `let-else` statement
 
   ```py
-  match Person(name, age) = x else:
-      raise Exception("Not a person")
+  let Person { name, age } = x else:
+      raise Error("Not a person")
 
   print(name)
   ```
@@ -377,20 +417,6 @@ def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch
   ```py
   add2 = add(2, _)
   add10 = add(_, 10)
-  ```
-
-- Cast function
-
-  ```py
-  animals = [Cat(), Dog(), ...]
-
-  """
-  ERROR
-
-  animals[0].meow() # Need to cast to a type
-  """
-
-  cast.[Cat](animals[0]).meow()
   ```
 
 - Overloading functions and methods based on arity and types
@@ -442,6 +468,7 @@ def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch
 
   ```py
   enum class Option[T]:
+      @no_wrap
       Some(value: T)
       None
 
@@ -454,13 +481,32 @@ def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch
 
 - Updated abstract class syntax
 
+  Abstract classes can't have `init` contructors.
+
   ```py
   abstract class Observable:
-      def init(self):
-          self.subscriptions: [Subscription]
+      subscriptions: [Subscription]
 
-      abstract def notify()
-      abstract def add_subscription(sub: Subcription)
+      def notify()
+      def add_subscription(sub: Subcription)
+  ```
+
+- Update enum syntax
+
+  ```py
+  enum class Data:
+      Inline([u8])
+      External { addr: str, port: u16 }
+  ```
+
+- Wrapped string and byte literals
+
+  Unlike Rust, string and byte literals are not `strarray` and `[u8, *]` respectively.
+  The literals are wrapped in their `str` and `[u8]` types.
+
+  ```py
+  name = "James" # str
+  data = b"Hello" # [u8]
   ```
 
 - Updated data class syntax
@@ -481,11 +527,29 @@ def fetch_peer_addr(net: Network, id: [u8; 16]) -> Result[str]: # Also def fetch
   id = Identity(504)
   ```
 
-- No special magic method syntax
+- No magic method syntax
 
   ```py
   class Person:
       def init(self, name, age):
           self.name = name
           self.age = age
+  ```
+
+- Module items can be exported only when explicitly stated
+
+  ```py
+  pub data class Person(pub name, pub age)
+  ```
+
+  ```py
+  pub(gaze) data class Person(name, age)
+  ```
+
+- No static field. Only instance field definition
+
+  ```py
+  pub class Person:
+      pub name: str
+      pub age: int
   ```
